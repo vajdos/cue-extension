@@ -1,0 +1,110 @@
+{
+  "manifest_version": 3,
+  "name": "Cue — Real-Time Conversation Intelligence",
+  "version": "1.2.0",
+  "description": "A real-time conversation intelligence layer for video calls. Processes voice acoustics on-device to help you listen better.",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "storage",
+    "alarms",
+    "notifications",
+    "contextMenus",
+    "sidePanel",
+    "offscreen",
+    "tabCapture"
+  ],
+  "background": {
+    "service_worker": "src/background/service-worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://teams.cloud.microsoft/*",
+        "https://teams.microsoft.com/*",
+        "https://teams.live.com/*",
+        "https://meet.google.com/*",
+        "https://zoom.us/wc/*",
+        "https://app.zoom.us/*"
+      ],
+      "js": [
+        "src/signal/thresholds.js",
+        "src/storage/db.js",
+        "src/tape/eq-score.js",
+        "src/tape/integration-tape.js",
+        "src/signal/signal-model.js",
+        "src/signal/nudge-engine.js",
+        "src/signal/coaching-engine.js",
+        "src/signal/adaptation-engine.js",
+        "src/signal/decision-engine.js",
+        "src/signal/interruption-detector.js",
+        "src/storage/intervention-log.js",
+        "src/signal/latency-monitor.js",
+        "src/audio/audio-manager.js",
+        "src/content/content-script.js"
+      ],
+      "css": [],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "icons": {
+    "16": "assets/icons/icon16.png",
+    "48": "assets/icons/icon48.png",
+    "128": "assets/icons/icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/audio/cue-processor.js",
+        "src/audio/audio-manager.js",
+        "tape/tape.html",
+        "tape/tape.js",
+        "tape/tape.css",
+        "src/signal/thresholds.js",
+        "src/storage/db.js",
+        "src/tape/eq-score.js",
+        "src/tape/integration-tape.js",
+        "tape/progress.html",
+        "tape/progress.js",
+        "tape/progress.css",
+        "src/settings/settings.html",
+        "src/settings/settings.js",
+        "src/settings/settings.css",
+        "verify/verify.html",
+        "verify/verify.js",
+        "verify/verify.css",
+        "side-panel/panel.html",
+        "side-panel/panel.js",
+        "side-panel/panel.css",
+        "offscreen/offscreen.html",
+        "offscreen/offscreen.js",
+        "onboarding/onboarding.html",
+        "onboarding/onboarding.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ],
+  "action": {
+    "default_icon": {
+      "16": "assets/icons/icon16.png",
+      "48": "assets/icons/icon48.png"
+    },
+    "default_title": "Cue — click to open side panel"
+  },
+  "side_panel": {
+    "default_path": "side-panel/panel.html"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+C",
+        "mac": "Alt+C"
+      },
+      "description": "Open Cue"
+    }
+  }
+}

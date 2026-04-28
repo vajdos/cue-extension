@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cue — MVP Verification</title>
+  <link rel="stylesheet" href="verify.css">
+</head>
+<body>
+  <div class="verify-container">
+
+    <!-- Header -->
+    <header class="v-header">
+      <div class="v-brand">
+        <span class="v-brand-name">Cue</span>
+        <span class="v-brand-sub">MVP Verification</span>
+      </div>
+      <div class="v-score">
+        <span class="v-score-value" id="v-score-value">—</span>
+        <span class="v-score-label">/ 7 passed</span>
+      </div>
+    </header>
+
+    <!-- Intro -->
+    <section class="v-intro">
+      <p>Automated tests for each of the 7 MVP components. Green = ready for demo. Red = fix before shipping.</p>
+      <div class="v-actions">
+        <button class="v-btn v-btn-primary" id="v-run-all">Run All Automated Tests</button>
+        <button class="v-btn" id="v-run-live">Start Live Pipeline Test</button>
+        <button class="v-btn v-btn-secondary" id="v-export">Export Report</button>
+      </div>
+    </section>
+
+    <!-- Test Results -->
+    <main class="v-results">
+
+      <!-- Component 1: Chrome Extension Scaffold -->
+      <div class="v-component" data-component="1">
+        <div class="v-component-header">
+          <div class="v-component-number">1</div>
+          <div class="v-component-title">Chrome Extension Scaffold</div>
+          <div class="v-component-status" id="v-status-1">pending</div>
+        </div>
+        <div class="v-component-tests" id="v-tests-1">
+          <div class="v-test" data-test="1.1"><span class="v-test-name">Manifest V3 loaded</span><span class="v-test-status">—</span></div>
+          <div class="v-test" data-test="1.2"><span class="v-test-name">Required permissions granted</span><span class="v-test-status">—</span></div>
+          <div class="v-test" data-test="1.3"><span class="v-test-name">Service worker alive</span><span class="v-test-status">—</span></div>
+          <div class="v-test" data-test="1.4"><span class="v-test-name">Content script matches configured</span><span class="v-test-status">—</span></div>
+          <div class="v-test" data-test="1.5"><span class="v-test-name">Icon + popup + action configured</span><span class="v-test-status">—</span></div>
+        </div>
+      </div>
+
+      <!-- Component 2: WebAudio Capture Pipeline -->
+      <div class="v-component" data-component="2">
+        <div class="v-component-header">
+          <div class="v-component-number">2</div>
+          <div class="v-component-title">WebAudio Capture Pipeline</div>
+          <div class="v-component-status" id="v-status-2">pending</div>
+        </div>
+        <div class="v-component-tests" id="v-tests-2">
+          <div class="v-test" data-test="2.1"><span class="v-test-name">AudioContext API available</span><span class="v-test-status">—</span></div>
+          <div class="v-test" data-test="2.2"><span class="v-test-name">AudioWorklet support</span><span class="v-test-status">—</span></div>
+          <div class="v-test" data-test="2.3"><span class="v-test-name">getUserMedia available</span><span class="v-test-status">—</span></div>
+          <div class="v-test" data-test="2.4"><span class="v-test-name">AnalyserNode support</span><span class="v-test-status">—</span></div>
+          <div class="v-test" data-test="2.5"><span class="v-test-name">cue-processor.js accessible</span><span class="v-test-status">—</span></div>
+          <div class="v-test" data-test="2.6"><span class="v-test-name">Live mic capture (requires permission)</span><span class="v-test-status">—</span></div>
+        </div>
+      </div>
+
+      <!-- Component 3: On-device DSP -->
+      <div class="v-component" data-component="3">
+        <div class="v-component-header">
+          <div class="v-component-number">3</div>
+          <div class="v-component-title">On-device DSP (Pace / Tension / Energy)</div>
+          <div class="v-component-status" id="v-status-3">pending</div>
+        </div>
+        <div class="v-component-tests" id="v-tests-3">
+          <div class="v-test" data-test="3.1"><span class="v-test-name">CueSignalModel loaded</span><span class="v-test-status">—</span></div>
+          <div class="v-test" data-test="3.2"><span class="v-test-name">RMS computation (energy)</span><span class="v-test-status">—</span></div>
+          <div class="v-test" data-test="3.3"><span class="v-test-name">ZCR computation (pace proxy)</span><span class="v-test-status">—</span></div>
+          <div class="v-test" data-test="3.4"><span class="v-test-name">Spectral centroid (tension proxy)</span><span class="v-test-status">—</span></div>
+          <div class="v-test" data-test="3.5"><span class="v-test-name">Score normalization 0-100</span><span class="v-test-status">—</span></div>
+          <div class="v-test" data-test="3.6"><span class="v-test-name">Calibration phase logic</span><span class="v-test-status">—</span></div>
+        </div>
+      </div>
+
+      <!-- Component 4: Signal Threshold Classifier -->
+      <div class="v-component" data-component="4">
+        <div class="v-component-header">
+          <div class="v-component-number">4</div>
+          <div class="v-component-title">Signal Threshold Classifier</div>
+          <div class="v-component-status" id="v-status-4">pending</div>
+        </div>
+        <div class="v-component-tests" id="v-tests-4">
+          <div class="v-test" data-test="4.1"><span class="v-test-name">CueNudgeEngine loaded</span><span class="v-test-status">—</span></div>
+          <div class="v-test" data-test="4.2"><span class="v-test-name">Thresholds configured (pace 70, tension 75)</span><span class="v-test-status">—</span></div>
+          <div class="v-test" data-test="4.3"><span class="v-test-name">Sustain counter works</span><span class="v-test-status">—</span></div>
+          <div class="v-test" data-test="4.4"><span class="v-test-name">Cooldown prevents double-fires</span><span class="v-test-status">—</span></div>
+          <div class="v-test" data-test="4.5"><span class="v-test-name">Grace period blocks early nudges</span><span class="v-test-status">—</span></div>
+          <div class="v-test" data-test="4.6"><span class="v-test-name">Escalation priority (T+P+E)</span><span class="v-test-status">—</span></div>
+        </div>
+      </div>
+
+      <!-- Component 5: Overlay UI -->
+      <div class="v-component" data-component="5">
+        <div class="v-component-header">
+          <div class="v-component-number">5</div>
+          <div class="v-component-title">Overlay UI (Live Bars)</div>
+          <div class="v-component-status" id="v-status-5">pending</div>
+        </div>
+        <div class="v-component-tests" id="v-tests-5">
+          <div class="v-test" data-test="5.1"><span class="v-test-name">Shadow DOM support</span><span class="v-test-status">—</span></div>
+          <div class="v-test" data-test="5.2"><span class="v-test-name">Widget injects without error</span><span class="v-test-status">—</span></div>
+          <div class="v-test" data-test="5.3"><span class="v-test-name">3 bars render (Tension / Pace / Energy)</span><span class="v-test-status">—</span></div>
+          <div class="v-test" data-test="5.4"><span class="v-test-name">Bars update width on signal change</span><span class="v-test-status">—</span></div>
+          <div class="v-test" data-test="5.5"><span class="v-test-name">Calibration status indicator works</span><span class="v-test-status">—</span></div>
+        </div>
+      </div>
+
+      <!-- Component 6: One Working Nudge Trigger -->
+      <div class="v-component" data-component="6">
+        <div class="v-component-header">
+          <div class="v-component-number">6</div>
+          <div class="v-component-title">Working Nudge Trigger(s)</div>
+          <div class="v-component-status" id="v-status-6">pending</div>
+        </div>
+        <div class="v-component-tests" id="v-tests-6">
+          <div class="v-test" data-test="6.1"><span class="v-test-name">Pace nudge fires on sustained high pace</span><span class="v-test-status">—</span></div>
+          <div class="v-test" data-test="6.2"><span class="v-test-name">Tension nudge fires on sustained high tension</span><span class="v-test-status">—</span></div>
+          <div class="v-test" data-test="6.3"><span class="v-test-name">Long-speech nudge fires at 30s without pause</span><span class="v-test-status">—</span></div>
+          <div class="v-test" data-test="6.4"><span class="v-test-name">Escalation nudge fires on compound signal</span><span class="v-test-status">—</span></div>
+          <div class="v-test" data-test="6.5"><span class="v-test-name">Nudge text pack renders (directive/gentle/minimal)</span><span class="v-test-status">—</span></div>
+        </div>
+      </div>
+
+      <!-- Component 7: Live Call End-to-End -->
+      <div class="v-component" data-component="7">
+        <div class="v-component-header">
+          <div class="v-component-number">7</div>
+          <div class="v-component-title">Live Call End-to-End</div>
+          <div class="v-component-status" id="v-status-7">manual</div>
+        </div>
+        <div class="v-component-tests" id="v-tests-7">
+          <div class="v-test v-test-manual" data-test="7.1"><span class="v-test-name">Content script loads on zoom.us/wc/*</span><span class="v-test-status">manual</span></div>
+          <div class="v-test v-test-manual" data-test="7.2"><span class="v-test-name">Widget auto-appears top-left</span><span class="v-test-status">manual</span></div>
+          <div class="v-test v-test-manual" data-test="7.3"><span class="v-test-name">Calibration completes within 20s</span><span class="v-test-status">manual</span></div>
+          <div class="v-test v-test-manual" data-test="7.4"><span class="v-test-name">Bars animate in response to voice</span><span class="v-test-status">manual</span></div>
+          <div class="v-test v-test-manual" data-test="7.5"><span class="v-test-name">Nudge fires within 3 min of fast/tense speech</span><span class="v-test-status">manual</span></div>
+          <div class="v-test v-test-manual" data-test="7.6"><span class="v-test-name">Integration Tape auto-opens after call ends</span><span class="v-test-status">manual</span></div>
+        </div>
+        <div class="v-live-guide">
+          <p><strong>Live Call Verification (manual steps):</strong></p>
+          <ol>
+            <li>Click <button class="v-btn v-btn-small" id="v-open-zoom">Open Zoom Web</button> → join any test meeting (can use your own with phone as 2nd participant)</li>
+            <li>Allow microphone when prompted</li>
+            <li>Verify widget appears top-left within 5 seconds</li>
+            <li>Speak normally for 20 seconds — calibration should complete</li>
+            <li>Speak deliberately fast for 10 seconds — pace nudge should fire</li>
+            <li>Leave the call — Integration Tape should open in a new tab within 3 seconds</li>
+            <li>Return here and click the pass/fail buttons below</li>
+          </ol>
+          <div class="v-manual-marks" id="v-manual-marks">
+            <button class="v-btn v-btn-pass" data-mark="7.1">Script loaded ✓</button>
+            <button class="v-btn v-btn-pass" data-mark="7.2">Widget appeared ✓</button>
+            <button class="v-btn v-btn-pass" data-mark="7.3">Calibration completed ✓</button>
+            <button class="v-btn v-btn-pass" data-mark="7.4">Bars animated ✓</button>
+            <button class="v-btn v-btn-pass" data-mark="7.5">Nudge fired ✓</button>
+            <button class="v-btn v-btn-pass" data-mark="7.6">Tape opened ✓</button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- Live Telemetry (shown during live test) -->
+    <section class="v-telemetry" id="v-telemetry" style="display:none;">
+      <h3>Live Telemetry</h3>
+      <div class="v-telemetry-grid">
+        <div class="v-t-cell"><span class="v-t-label">Frames/sec</span><span class="v-t-value" id="v-t-fps">—</span></div>
+        <div class="v-t-cell"><span class="v-t-label">RMS</span><span class="v-t-value" id="v-t-rms">—</span></div>
+        <div class="v-t-cell"><span class="v-t-label">ZCR</span><span class="v-t-value" id="v-t-zcr">—</span></div>
+        <div class="v-t-cell"><span class="v-t-label">Centroid</span><span class="v-t-value" id="v-t-centroid">—</span></div>
+        <div class="v-t-cell"><span class="v-t-label">Speech?</span><span class="v-t-value" id="v-t-speech">—</span></div>
+        <div class="v-t-cell"><span class="v-t-label">Calibration</span><span class="v-t-value" id="v-t-cal">—</span></div>
+        <div class="v-t-cell"><span class="v-t-label">Tension</span><span class="v-t-value" id="v-t-tension">—</span></div>
+        <div class="v-t-cell"><span class="v-t-label">Pace</span><span class="v-t-value" id="v-t-pace">—</span></div>
+        <div class="v-t-cell"><span class="v-t-label">Energy</span><span class="v-t-value" id="v-t-energy">—</span></div>
+        <div class="v-t-cell"><span class="v-t-label">Latency</span><span class="v-t-value" id="v-t-latency">—</span></div>
+      </div>
+      <button class="v-btn" id="v-stop-live">Stop Live Test</button>
+    </section>
+
+    <footer class="v-footer">
+      <p class="v-footer-text">On-device only. No audio leaves this browser during verification.</p>
+    </footer>
+
+  </div>
+
+  <!-- Load Cue runtime modules (same files the content script loads) -->
+  <script src="../src/signal/thresholds.js"></script>
+  <script src="../src/signal/signal-model.js"></script>
+  <script src="../src/signal/nudge-engine.js"></script>
+  <script src="../src/signal/latency-monitor.js"></script>
+  <script src="../src/audio/audio-manager.js"></script>
+
+  <script src="verify.js"></script>
+</body>
+</html>

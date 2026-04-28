@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cue Settings</title>
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <div class="page">
+    <header class="header">
+      <div class="brand">
+        <div class="brand-icon"></div>
+        <span class="brand-name">Cue</span>
+        <span class="brand-sub">Settings</span>
+      </div>
+    </header>
+
+    <!-- Nudge Style -->
+    <section class="card">
+      <h2 class="section-title">Nudge Style</h2>
+      <p class="section-desc">Choose how Cue talks to you during calls.</p>
+      <div class="radio-group" id="nudge-pack">
+        <label class="radio-card">
+          <input type="radio" name="nudgePack" value="directive">
+          <div class="radio-content">
+            <span class="radio-label">Directive</span>
+            <span class="radio-example">"SLOW DOWN" "PAUSE" "BREATHE"</span>
+          </div>
+        </label>
+        <label class="radio-card">
+          <input type="radio" name="nudgePack" value="gentle" checked>
+          <div class="radio-content">
+            <span class="radio-label">Gentle</span>
+            <span class="radio-example">"Slow it down" "Take a breath" "Let them finish"</span>
+          </div>
+        </label>
+        <label class="radio-card">
+          <input type="radio" name="nudgePack" value="minimal">
+          <div class="radio-content">
+            <span class="radio-label">Minimal</span>
+            <span class="radio-example">Glow only — no text, just a color pulse</span>
+          </div>
+        </label>
+      </div>
+    </section>
+
+    <!-- Coaching Intensity -->
+    <section class="card">
+      <h2 class="section-title">Coaching Intensity</h2>
+      <p class="section-desc">How actively Cue engages with positive feedback and gentle check-ins. Warnings always fire regardless of this setting.</p>
+      <div class="radio-group" id="coaching-intensity">
+        <label class="radio-card">
+          <input type="radio" name="coachingIntensity" value="silent">
+          <div class="radio-content">
+            <span class="radio-label">Silent observer</span>
+            <span class="radio-example">Warnings only. No positive feedback.</span>
+          </div>
+        </label>
+        <label class="radio-card">
+          <input type="radio" name="coachingIntensity" value="gentle" checked>
+          <div class="radio-content">
+            <span class="radio-label">Gentle check-in <span style="font-size:10px;color:#2DD4A0;margin-left:6px;">DEFAULT</span></span>
+            <span class="radio-example">Positive cue every ~30s when flowing; "Good listening" when silent</span>
+          </div>
+        </label>
+        <label class="radio-card">
+          <input type="radio" name="coachingIntensity" value="active">
+          <div class="radio-content">
+            <span class="radio-label">Active coach</span>
+            <span class="radio-example">Positive cue every ~15s. More engagement.</span>
+          </div>
+        </label>
+        <label class="radio-card">
+          <input type="radio" name="coachingIntensity" value="intense">
+          <div class="radio-content">
+            <span class="radio-label">Intense (practice)</span>
+            <span class="radio-example">Positive cue every ~8s. For solo practice sessions.</span>
+          </div>
+        </label>
+      </div>
+    </section>
+
+    <!-- Nudge Channels -->
+    <section class="card">
+      <h2 class="section-title">Nudge Channels</h2>
+      <p class="section-desc">Where nudges reach you. Enable multiple for layered feedback.</p>
+      <div class="checkbox-group" id="nudge-channels">
+        <label class="check-row">
+          <input type="checkbox" value="visual" checked disabled>
+          <span class="check-label">Visual overlay <span class="check-note">(always on)</span></span>
+        </label>
+        <label class="check-row">
+          <input type="checkbox" value="notification" id="ch-notification">
+          <span class="check-label">System notification</span>
+        </label>
+        <label class="check-row">
+          <input type="checkbox" value="sound" id="ch-sound">
+          <span class="check-label">Sound</span>
+        </label>
+        <label class="check-row sound-volume" id="volume-row" style="display:none;">
+          <span class="check-label">Volume</span>
+          <input type="range" id="sound-volume" min="0" max="100" value="40" class="slider">
+        </label>
+        <label class="check-row">
+          <input type="checkbox" value="haptic" id="ch-haptic">
+          <span class="check-label">Apple Watch haptic</span>
+          <span class="check-note watch-note">Requires Cue Watch app</span>
+        </label>
+      </div>
+    </section>
+
+    <!-- Haptic Patterns (Apple Watch) -->
+    <section class="card" id="haptic-section" style="display:none;">
+      <h2 class="section-title">Haptic Pattern</h2>
+      <p class="section-desc">How your Apple Watch taps you during a nudge.</p>
+      <div class="radio-group" id="haptic-pattern">
+        <label class="radio-card compact">
+          <input type="radio" name="hapticPattern" value="tap" checked>
+          <span class="radio-label">Tap</span>
+        </label>
+        <label class="radio-card compact">
+          <input type="radio" name="hapticPattern" value="doubleTap">
+          <span class="radio-label">Double Tap</span>
+        </label>
+        <label class="radio-card compact">
+          <input type="radio" name="hapticPattern" value="breathe">
+          <span class="radio-label">Breathe</span>
+        </label>
+        <label class="radio-card compact">
+          <input type="radio" name="hapticPattern" value="pulse">
+          <span class="radio-label">Pulse</span>
+        </label>
+      </div>
+    </section>
+
+    <!-- Thresholds -->
+    <section class="card">
+      <h2 class="section-title">Sensitivity</h2>
+      <p class="section-desc">When Cue nudges you. Lower = more sensitive.</p>
+      <div class="slider-group">
+        <div class="slider-row">
+          <span class="slider-label">Pace trigger</span>
+          <input type="range" id="thresh-pace" min="50" max="100" value="70" class="slider">
+          <span class="slider-value" id="thresh-pace-val">70</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-label">Tension trigger</span>
+          <input type="range" id="thresh-tension" min="50" max="100" value="75" class="slider">
+          <span class="slider-value" id="thresh-tension-val">75</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-label">Long speech</span>
+          <input type="range" id="thresh-speech" min="15" max="90" value="45" class="slider" step="5">
+          <span class="slider-value" id="thresh-speech-val">45s</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Timing -->
+    <section class="card">
+      <h2 class="section-title">Timing</h2>
+      <div class="slider-group">
+        <div class="slider-row">
+          <span class="slider-label">Grace period</span>
+          <input type="range" id="timing-grace" min="0" max="120" value="30" class="slider" step="5">
+          <span class="slider-value" id="timing-grace-val">30s</span>
+        </div>
+        <div class="slider-row">
+          <span class="slider-label">Cooldown</span>
+          <input type="range" id="timing-cooldown" min="10" max="120" value="30" class="slider" step="5">
+          <span class="slider-value" id="timing-cooldown-val">30s</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Cross-Device Sync -->
+    <section class="card" id="sync-section">
+      <h2 class="section-title">Cross-Device Sync</h2>
+      <p class="section-desc">Link your email to carry settings, progress, and calibration across Chrome, iPhone, and Apple Watch.</p>
+      <div class="sync-form">
+        <input type="email" id="sync-email" placeholder="your@email.com" class="text-input">
+        <button id="sync-btn" class="btn-primary">Sync Now</button>
+      </div>
+      <div class="sync-status" id="sync-status" style="display:none;">
+        <span class="sync-dot"></span>
+        <span id="sync-status-text">Last synced: never</span>
+      </div>
+    </section>
+
+    <!-- Data & Export (v1.0) -->
+    <section class="card">
+      <h2 class="section-title">Data &amp; Export</h2>
+      <p class="section-desc">Your intervention log is the raw moat dataset. Every non-CONTINUE decision Cue has made, with signal state before and behavior outcome after.</p>
+      <div id="export-stats" style="font-size:13px;color:rgba(29,29,31,.7);margin-bottom:12px;">
+        <span id="export-count">Loading...</span>
+      </div>
+      <button id="export-csv-btn" class="btn-reset" style="background:#1D1D1F;color:#FFFFFF;border-color:#1D1D1F;">Export interventions as CSV</button>
+      <button id="clear-log-btn" class="btn-reset" style="margin-top:8px;">Clear intervention log</button>
+    </section>
+
+    <!-- Reset -->
+    <section class="card">
+      <button id="reset-btn" class="btn-reset">Reset to Defaults</button>
+    </section>
+
+    <footer class="footer">
+      <span class="privacy">On-device only. No audio recorded. Settings sync is encrypted in transit.</span>
+    </footer>
+  </div>
+
+  <script src="../storage/intervention-log.js"></script>
+  <script src="settings.js"></script>
+</body>
+</html>

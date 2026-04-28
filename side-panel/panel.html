@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cue</title>
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <div class="panel">
+
+    <!-- Header -->
+    <header class="p-header">
+      <div class="p-brand">
+        <div class="p-logo" id="p-logo"></div>
+        <div class="p-brand-text">
+          <span class="p-brand-name">Cue</span>
+          <span class="p-brand-sub">Always On</span>
+        </div>
+      </div>
+      <div class="p-session-clock" id="p-session-clock">—</div>
+    </header>
+
+    <!-- Status -->
+    <section class="p-status">
+      <div class="p-status-dot" id="p-status-dot"></div>
+      <div class="p-status-text" id="p-status-text">Click Start to begin listening</div>
+    </section>
+
+    <!-- Main Signals (3 bars, large) -->
+    <section class="p-signals">
+      <div class="p-signal-row">
+        <div class="p-signal-header">
+          <span class="p-signal-label">Tension</span>
+          <span class="p-signal-value" id="p-tension-value">—</span>
+        </div>
+        <div class="p-bar-track">
+          <div class="p-bar-fill p-bar-tension" id="p-tension-bar"></div>
+        </div>
+      </div>
+      <div class="p-signal-row">
+        <div class="p-signal-header">
+          <span class="p-signal-label">Pace</span>
+          <span class="p-signal-value" id="p-pace-value">—</span>
+        </div>
+        <div class="p-bar-track">
+          <div class="p-bar-fill p-bar-pace" id="p-pace-bar"></div>
+        </div>
+      </div>
+      <div class="p-signal-row">
+        <div class="p-signal-header">
+          <span class="p-signal-label">Energy</span>
+          <span class="p-signal-value" id="p-energy-value">—</span>
+        </div>
+        <div class="p-bar-track">
+          <div class="p-bar-fill p-bar-energy" id="p-energy-bar"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Conversation Profile picker -->
+    <section class="p-profile-picker">
+      <span class="p-profile-label">Context</span>
+      <select id="p-profile-select" class="p-profile-select">
+        <option value="default">Default — balanced</option>
+        <option value="negotiation">Negotiation — strategic</option>
+        <option value="sales">Sales / Discovery</option>
+        <option value="presentation">Presentation</option>
+        <option value="one_on_one">1-on-1 Coaching</option>
+      </select>
+    </section>
+
+    <!-- Source picker: Me / Them / Both (for real interruption detection) -->
+    <section class="p-source-picker">
+      <span class="p-source-label">Listen to:</span>
+      <button type="button" class="p-source-btn active" id="p-source-me" data-source="mic">Me</button>
+      <button type="button" class="p-source-btn" id="p-source-them" data-source="tab">Them</button>
+      <button type="button" class="p-source-btn" id="p-source-both" data-source="both">Both</button>
+    </section>
+    <div class="p-source-hint" id="p-source-hint" style="display:none;">
+      Switch to your Zoom / Teams / Meet tab before clicking Start.
+    </div>
+
+    <!-- Main Control -->
+    <section class="p-control">
+      <button class="p-btn p-btn-primary" id="p-start-btn">Start Listening</button>
+    </section>
+
+    <!-- Nudge Card (appears when nudge fires) -->
+    <section class="p-nudge-card" id="p-nudge-card">
+      <div class="p-nudge-type" id="p-nudge-type">PACE</div>
+      <div class="p-nudge-text" id="p-nudge-text">Slow it down</div>
+    </section>
+
+    <!-- Session Stats -->
+    <section class="p-stats" id="p-stats" style="display:none;">
+      <h3 class="p-section-title">This Session</h3>
+      <div class="p-stats-grid">
+        <div class="p-stat">
+          <span class="p-stat-label">Nudges</span>
+          <span class="p-stat-value" id="p-stat-nudges">0</span>
+        </div>
+        <div class="p-stat">
+          <span class="p-stat-label">Pace</span>
+          <span class="p-stat-value" id="p-stat-avg-pace">—</span>
+        </div>
+        <div class="p-stat">
+          <span class="p-stat-label">Tension</span>
+          <span class="p-stat-value" id="p-stat-avg-tension">—</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pro upgrade (Free users only — hidden when cuePro === true) -->
+    <!-- Collapsed by default; click "See Pro" to expand to benefits + payment button -->
+    <section class="p-pro" id="p-pro">
+      <!-- Collapsed state: just a teaser row -->
+      <div class="p-pro-collapsed" id="p-pro-collapsed">
+        <span class="p-pro-badge">Free</span>
+        <span class="p-pro-teaser">You're on Cue Free. Pro unlocks the full tool.</span>
+        <button class="p-pro-see" id="p-pro-see" type="button">See Pro &rsaquo;</button>
+      </div>
+
+      <!-- Expanded state: benefits list + upgrade CTA (hidden until user clicks) -->
+      <div class="p-pro-expanded" id="p-pro-expanded" style="display:none;">
+        <div class="p-pro-header">
+          <span class="p-pro-badge">Pro</span>
+          <span class="p-pro-headline">Cue Pro unlocks the full tool</span>
+          <button class="p-pro-close" id="p-pro-close" type="button" aria-label="Collapse">&times;</button>
+        </div>
+        <ul class="p-pro-list">
+          <li>Unlimited nudges per call (Free caps at 3)</li>
+          <li>Full Integration Tape &mdash; emotional arc, moment-you-missed, skill recommendation</li>
+          <li>Unlimited session history + Progress dashboard</li>
+          <li>Cross-device sync to iPhone + Apple Watch haptics</li>
+          <li>Priority support and early access to Both-on-Cue</li>
+        </ul>
+        <div class="p-pro-cta">
+          <a href="https://cue-pwa.vercel.app/pricing.html" target="_blank" class="p-pro-btn" id="p-pro-upgrade">Upgrade to Pro &mdash; $69/yr founding</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pro active (hidden by default; shown when cuePro === true) -->
+    <section class="p-pro-active" id="p-pro-active" style="display:none;">
+      <span class="p-pro-active-badge">Pro</span>
+      <span class="p-pro-active-text">All features unlocked</span>
+    </section>
+
+    <!-- Quick Actions -->
+    <section class="p-actions">
+      <button class="p-action-btn" id="p-settings-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>Settings</span>
+      </button>
+      <button class="p-action-btn" id="p-progress-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span>Progress</span>
+      </button>
+      <button class="p-action-btn" id="p-verify-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        <span>Verify</span>
+      </button>
+    </section>
+
+    <!-- Footer -->
+    <footer class="p-footer">
+      <div class="p-footer-line">
+        <span class="p-version" id="p-version">v0.6.0</span>
+        <span class="p-privacy">On-device only</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- Thresholds (nudge text packs + profiles) + adaptation engine (for session-end persist) -->
+  <script src="../src/signal/thresholds.js"></script>
+  <script src="../src/signal/adaptation-engine.js"></script>
+  <script src="panel.js"></script>
+</body>
+</html>

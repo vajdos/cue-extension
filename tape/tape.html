@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cue — Integration Tape</title>
+  <link rel="stylesheet" href="tape.css">
+</head>
+<body>
+  <div class="tape-container">
+
+    <!-- Header -->
+    <header class="tape-header">
+      <div class="tape-logo">
+        <div class="tape-logo-dot"></div>
+        <span class="tape-logo-text">Cue</span>
+      </div>
+      <div class="tape-subtitle">Integration Tape</div>
+    </header>
+
+    <!-- Loading state -->
+    <div id="tape-loading" class="tape-loading">
+      <div class="tape-loading-spinner"></div>
+      <p>Analyzing your call...</p>
+    </div>
+
+    <!-- No data state -->
+    <div id="tape-empty" class="tape-empty" style="display:none;">
+      <p class="tape-empty-title" id="tape-empty-title">No session data yet</p>
+      <p class="tape-empty-hint" id="tape-empty-hint">Complete a call with Cue active to see your Integration Tape.</p>
+      <div class="tape-empty-actions">
+        <button class="tape-empty-btn tape-empty-btn-primary" id="tape-open-panel">Open Cue Side Panel</button>
+        <button class="tape-empty-btn" id="tape-open-progress">View Progress</button>
+      </div>
+    </div>
+
+    <!-- Main content (hidden until data loads) -->
+    <main id="tape-content" style="display:none;">
+
+      <!-- Session Info -->
+      <section class="tape-session-info">
+        <span id="tape-date" class="tape-date"></span>
+        <span class="tape-divider">·</span>
+        <span id="tape-time" class="tape-time"></span>
+        <span class="tape-divider">·</span>
+        <span id="tape-duration" class="tape-duration"></span>
+      </section>
+
+      <!-- EQ Score Hero -->
+      <section class="tape-eq-hero">
+        <div class="tape-eq-ring-container">
+          <canvas id="tape-eq-ring" width="200" height="200"></canvas>
+          <div class="tape-eq-score-overlay">
+            <span id="tape-eq-score" class="tape-eq-number">--</span>
+            <span class="tape-eq-label">EQ Score</span>
+          </div>
+        </div>
+
+        <!-- Comparison to previous call -->
+        <div id="tape-comparison" class="tape-comparison" style="display:none;">
+          <span id="tape-delta" class="tape-delta"></span>
+          <span class="tape-comparison-label">vs last call</span>
+        </div>
+      </section>
+
+      <!-- EQ Breakdown -->
+      <section class="tape-breakdown">
+        <h2 class="tape-section-title">Score Breakdown</h2>
+        <div class="tape-breakdown-grid">
+          <div class="tape-breakdown-item">
+            <div class="tape-breakdown-bar-track">
+              <div id="bar-tension-stability" class="tape-breakdown-bar tension-bar"></div>
+            </div>
+            <div class="tape-breakdown-label">Tension Stability</div>
+            <div id="score-tension-stability" class="tape-breakdown-score">--</div>
+          </div>
+          <div class="tape-breakdown-item">
+            <div class="tape-breakdown-bar-track">
+              <div id="bar-strategic-pausing" class="tape-breakdown-bar pausing-bar"></div>
+            </div>
+            <div class="tape-breakdown-label">Strategic Pausing</div>
+            <div id="score-strategic-pausing" class="tape-breakdown-score">--</div>
+          </div>
+          <div class="tape-breakdown-item">
+            <div class="tape-breakdown-bar-track">
+              <div id="bar-energy-regulation" class="tape-breakdown-bar energy-bar"></div>
+            </div>
+            <div class="tape-breakdown-label">Energy Regulation</div>
+            <div id="score-energy-regulation" class="tape-breakdown-score">--</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Emotional Arc Chart -->
+      <section class="tape-arc" id="tape-arc">
+        <h2 class="tape-section-title">Emotional Arc</h2>
+        <div class="tape-arc-legend">
+          <span class="tape-legend-item"><span class="tape-legend-dot tension-dot"></span> Tension</span>
+          <span class="tape-legend-item"><span class="tape-legend-dot pace-dot"></span> Pace</span>
+          <span class="tape-legend-item"><span class="tape-legend-dot energy-dot"></span> Energy</span>
+        </div>
+        <div class="tape-arc-chart-container">
+          <canvas id="tape-arc-chart" width="800" height="250"></canvas>
+        </div>
+      </section>
+
+      <!-- The Moment You Missed -->
+      <section id="tape-moment" class="tape-moment" style="display:none;">
+        <h2 class="tape-section-title">The Moment You Missed</h2>
+        <div class="tape-moment-card">
+          <div class="tape-moment-time">
+            <span id="tape-moment-time" class="tape-moment-timestamp"></span>
+            <span class="tape-moment-label">into the call</span>
+          </div>
+          <p id="tape-moment-desc" class="tape-moment-description"></p>
+          <div class="tape-moment-signals">
+            <span class="tape-signal-badge tension-badge">T: <span id="tape-moment-t">--</span></span>
+            <span class="tape-signal-badge pace-badge">P: <span id="tape-moment-p">--</span></span>
+            <span class="tape-signal-badge energy-badge">E: <span id="tape-moment-e">--</span></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Nudge Summary -->
+      <section class="tape-nudges">
+        <h2 class="tape-section-title">Nudge Summary</h2>
+        <div class="tape-nudge-grid">
+          <div class="tape-nudge-stat">
+            <span id="nudge-total" class="tape-nudge-number">0</span>
+            <span class="tape-nudge-label">Total Nudges</span>
+          </div>
+          <div class="tape-nudge-stat">
+            <span id="nudge-pace" class="tape-nudge-number pace-text">0</span>
+            <span class="tape-nudge-label">Pace</span>
+          </div>
+          <div class="tape-nudge-stat">
+            <span id="nudge-tension" class="tape-nudge-number tension-text">0</span>
+            <span class="tape-nudge-label">Tension</span>
+          </div>
+          <div class="tape-nudge-stat">
+            <span id="nudge-longspeech" class="tape-nudge-number longspeech-text">0</span>
+            <span class="tape-nudge-label">Long Speech</span>
+          </div>
+          <div class="tape-nudge-stat">
+            <span id="nudge-escalation" class="tape-nudge-number escalation-text">0</span>
+            <span class="tape-nudge-label">Escalation</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Micro-Skill -->
+      <section class="tape-skill" id="tape-skill">
+        <h2 class="tape-section-title">Your Micro-Skill</h2>
+        <div class="tape-skill-card">
+          <div id="tape-skill-name" class="tape-skill-name"></div>
+          <p id="tape-skill-desc" class="tape-skill-desc"></p>
+          <div class="tape-skill-tip">
+            <span class="tape-skill-tip-label">Try this:</span>
+            <p id="tape-skill-tip" class="tape-skill-tip-text"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Session Stats -->
+      <section class="tape-stats">
+        <div class="tape-stat-row">
+          <span class="tape-stat-label">Speech ratio</span>
+          <span id="tape-speech-ratio" class="tape-stat-value">--%</span>
+        </div>
+        <div class="tape-stat-row">
+          <span class="tape-stat-label">Data frames recorded</span>
+          <span id="tape-frame-count" class="tape-stat-value">--</span>
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <footer class="tape-footer">
+        <p>All data processed and stored on your device. Nothing left the browser.</p>
+        <p class="tape-footer-brand">Cue — Conversation Intelligence</p>
+      </footer>
+
+    </main>
+  </div>
+
+  <!-- Load Cue modules -->
+  <script src="../src/signal/thresholds.js"></script>
+  <script src="../src/storage/db.js"></script>
+  <script src="../src/tape/eq-score.js"></script>
+  <script src="../src/tape/integration-tape.js"></script>
+  <script src="tape.js"></script>
+</body>
+</html>

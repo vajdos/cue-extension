@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cue — Your Progress</title>
+  <link rel="stylesheet" href="progress.css">
+</head>
+<body>
+  <div class="progress-container">
+
+    <!-- Header -->
+    <header class="pg-header">
+      <div class="pg-logo">
+        <div class="pg-logo-dot"></div>
+        <span class="pg-logo-text">Cue</span>
+      </div>
+      <div class="pg-subtitle">Your Progress</div>
+    </header>
+
+    <!-- Loading -->
+    <div id="pg-loading" class="pg-loading">
+      <div class="pg-spinner"></div>
+      <p>Loading your journey...</p>
+    </div>
+
+    <!-- Not enough data -->
+    <div id="pg-insufficient" class="pg-insufficient" style="display:none;">
+      <div class="pg-insufficient-icon">📊</div>
+      <p>Complete at least 2 calls with Cue to start tracking your progress.</p>
+      <p class="pg-hint">Your trends, streaks, and adaptive coaching will appear here.</p>
+    </div>
+
+    <!-- Main content -->
+    <main id="pg-content" style="display:none;">
+
+      <!-- Streak + Summary Hero -->
+      <section class="pg-hero">
+        <div class="pg-streak-card">
+          <div class="pg-streak-number" id="pg-streak">0</div>
+          <div class="pg-streak-label">Call Streak</div>
+          <div class="pg-streak-sub" id="pg-streak-sub">consecutive improving calls</div>
+        </div>
+        <div class="pg-summary-stats">
+          <div class="pg-stat">
+            <span class="pg-stat-value" id="pg-total-calls">0</span>
+            <span class="pg-stat-label">Total Calls</span>
+          </div>
+          <div class="pg-stat">
+            <span class="pg-stat-value" id="pg-avg-score">--</span>
+            <span class="pg-stat-label">Avg EQ Score</span>
+          </div>
+          <div class="pg-stat">
+            <span class="pg-stat-value" id="pg-best-score">--</span>
+            <span class="pg-stat-label">Best Score</span>
+          </div>
+          <div class="pg-stat">
+            <span class="pg-stat-value" id="pg-total-nudges">0</span>
+            <span class="pg-stat-label">Total Nudges</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- EQ Score Trend Chart -->
+      <section class="pg-section">
+        <h2 class="pg-section-title">EQ Score Over Time</h2>
+        <div class="pg-chart-container">
+          <canvas id="pg-score-chart" width="800" height="280"></canvas>
+        </div>
+      </section>
+
+      <!-- Nudge Frequency Trend -->
+      <section class="pg-section">
+        <h2 class="pg-section-title">Nudges Per Call</h2>
+        <p class="pg-section-desc" id="pg-nudge-trend-desc"></p>
+        <div class="pg-chart-container">
+          <canvas id="pg-nudge-chart" width="800" height="200"></canvas>
+        </div>
+      </section>
+
+      <!-- Skill Breakdown Over Time -->
+      <section class="pg-section">
+        <h2 class="pg-section-title">Skill Progression</h2>
+        <div class="pg-skills">
+          <div class="pg-skill-card">
+            <div class="pg-skill-header">
+              <span class="pg-skill-name">Tension Stability</span>
+              <span class="pg-skill-delta" id="pg-tension-delta"></span>
+            </div>
+            <div class="pg-skill-bar-track">
+              <div class="pg-skill-bar pg-bar-tension" id="pg-tension-bar"></div>
+            </div>
+            <div class="pg-skill-values">
+              <span class="pg-skill-first" id="pg-tension-first">First: --</span>
+              <span class="pg-skill-latest" id="pg-tension-latest">Latest: --</span>
+            </div>
+          </div>
+
+          <div class="pg-skill-card">
+            <div class="pg-skill-header">
+              <span class="pg-skill-name">Strategic Pausing</span>
+              <span class="pg-skill-delta" id="pg-pausing-delta"></span>
+            </div>
+            <div class="pg-skill-bar-track">
+              <div class="pg-skill-bar pg-bar-pausing" id="pg-pausing-bar"></div>
+            </div>
+            <div class="pg-skill-values">
+              <span class="pg-skill-first" id="pg-pausing-first">First: --</span>
+              <span class="pg-skill-latest" id="pg-pausing-latest">Latest: --</span>
+            </div>
+          </div>
+
+          <div class="pg-skill-card">
+            <div class="pg-skill-header">
+              <span class="pg-skill-name">Energy Regulation</span>
+              <span class="pg-skill-delta" id="pg-energy-delta"></span>
+            </div>
+            <div class="pg-skill-bar-track">
+              <div class="pg-skill-bar pg-bar-energy" id="pg-energy-bar"></div>
+            </div>
+            <div class="pg-skill-values">
+              <span class="pg-skill-first" id="pg-energy-first">First: --</span>
+              <span class="pg-skill-latest" id="pg-energy-latest">Latest: --</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Adaptive Coaching -->
+      <section class="pg-section">
+        <h2 class="pg-section-title">Your Coaching Path</h2>
+        <div class="pg-coaching" id="pg-coaching">
+          <!-- Filled by JS -->
+        </div>
+      </section>
+
+      <!-- Intervention Success Rate (v1.0 Decision Engine outcome metric) -->
+      <section class="pg-section" id="pg-success-section">
+        <h2 class="pg-section-title">Intervention Success Rate</h2>
+        <p class="pg-section-desc">How often Cue's nudges produced the behavior change they aimed for. The moat metric: intervention → behavior → outcome.</p>
+        <div class="pg-success-grid" id="pg-success-grid">
+          <div class="pg-success-card">
+            <span class="pg-success-label">Overall</span>
+            <span class="pg-success-value" id="pg-success-rate">—</span>
+            <span class="pg-success-sub" id="pg-success-sub">no interventions yet</span>
+          </div>
+          <div class="pg-success-card">
+            <span class="pg-success-label">PAUSE nudges</span>
+            <span class="pg-success-value" id="pg-pause-rate">—</span>
+            <span class="pg-success-sub" id="pg-pause-sub">—</span>
+          </div>
+          <div class="pg-success-card">
+            <span class="pg-success-label">ASK_QUESTION</span>
+            <span class="pg-success-value" id="pg-ask-rate">—</span>
+            <span class="pg-success-sub" id="pg-ask-sub">—</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Session History -->
+      <section class="pg-section">
+        <h2 class="pg-section-title">All Sessions</h2>
+        <div class="pg-session-table" id="pg-session-table">
+          <!-- Filled by JS -->
+        </div>
+      </section>
+
+      <footer class="pg-footer">
+        <p>All data stored on your device. Nothing leaves the browser.</p>
+        <p class="pg-footer-brand">Cue — Conversation Intelligence</p>
+      </footer>
+    </main>
+  </div>
+
+  <script src="../src/signal/thresholds.js"></script>
+  <script src="../src/storage/db.js"></script>
+  <script src="../src/storage/intervention-log.js"></script>
+  <script src="../src/tape/eq-score.js"></script>
+  <script src="../src/tape/integration-tape.js"></script>
+  <script src="progress.js"></script>
+</body>
+</html>

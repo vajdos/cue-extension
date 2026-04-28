@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Welcome to Cue</title>
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --card: #141414;
+      --border: rgba(255,255,255,0.08);
+      --text: #f5f5f7;
+      --muted: #888;
+      --accent: #2DD4A0;
+      --accent-hover: #26B88A;
+      --danger: #EF4444;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; height: 100%;
+      background: var(--bg); color: var(--text);
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    }
+    body {
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    .shell {
+      width: 100%; max-width: 560px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 48px 48px 40px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+    }
+    .step { display: none; }
+    .step.active { display: block; }
+    .step-indicator {
+      display: flex; justify-content: center; gap: 6px;
+      margin-bottom: 32px;
+    }
+    .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: rgba(255,255,255,0.15);
+      transition: background 0.2s;
+    }
+    .dot.active { background: var(--accent); width: 18px; border-radius: 3px; }
+    .dot.done { background: rgba(45, 212, 160, 0.4); }
+
+    h1 {
+      font-size: 28px; font-weight: 700; margin: 0 0 12px;
+      letter-spacing: -0.5px;
+    }
+    .lede {
+      font-size: 15px; color: var(--muted);
+      line-height: 1.55; margin-bottom: 28px;
+    }
+    .lede strong { color: var(--text); font-weight: 600; }
+
+    .logo-row {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 24px;
+    }
+    .logo-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 12px rgba(45, 212, 160, 0.5);
+    }
+    .logo-text { font-size: 13px; font-weight: 600; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; }
+
+    /* Feature blocks (step 2) */
+    .features { display: grid; gap: 16px; margin-bottom: 28px; }
+    .feature {
+      display: grid; grid-template-columns: 36px 1fr; gap: 14px;
+      align-items: start;
+    }
+    .feature-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: rgba(45, 212, 160, 0.1);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--accent);
+      font-size: 16px; font-weight: 700;
+    }
+    .feature-title { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+    .feature-desc { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+    /* Pack selection (step 3) */
+    .packs { display: grid; gap: 10px; margin-bottom: 28px; }
+    .pack {
+      display: block; cursor: pointer;
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      transition: all 0.15s;
+      background: rgba(255,255,255,0.02);
+    }
+    .pack:hover { border-color: rgba(45, 212, 160, 0.3); }
+    .pack input { display: none; }
+    .pack input:checked + .pack-body { }
+    .pack.selected {
+      border-color: var(--accent);
+      background: rgba(45, 212, 160, 0.06);
+    }
+    .pack-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .pack-name { font-size: 14px; font-weight: 600; }
+    .pack-badge {
+      font-size: 10px; color: var(--accent);
+      padding: 2px 8px; border-radius: 100px;
+      border: 1px solid var(--accent);
+      opacity: 0; transition: opacity 0.2s;
+    }
+    .pack.selected .pack-badge { opacity: 1; }
+    .pack-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .pack-example {
+      margin-top: 8px;
+      font-size: 11px; color: #bbb;
+      font-family: monospace;
+      padding: 6px 10px; border-radius: 6px;
+      background: rgba(0,0,0,0.3);
+      display: inline-block;
+    }
+
+    /* Privacy block (step 4) */
+    .privacy-grid { display: grid; gap: 14px; margin-bottom: 28px; }
+    .privacy-row {
+      display: grid; grid-template-columns: 24px 1fr; gap: 10px;
+      align-items: start; font-size: 13px; line-height: 1.5;
+    }
+    .privacy-row-icon { color: var(--accent); font-weight: 700; }
+    .privacy-row strong { display: block; margin-bottom: 2px; color: var(--text); }
+    .privacy-row span { color: var(--muted); }
+
+    /* Buttons */
+    .actions {
+      display: flex; gap: 10px; justify-content: space-between;
+      margin-top: 8px;
+    }
+    .btn {
+      font-family: inherit;
+      font-size: 14px; font-weight: 600;
+      padding: 12px 28px;
+      border-radius: 100px;
+      border: none; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn.primary {
+      background: var(--accent); color: #0a0a0a;
+    }
+    .btn.primary:hover { background: var(--accent-hover); }
+    .btn.ghost {
+      background: transparent; color: var(--muted);
+    }
+    .btn.ghost:hover { color: var(--text); }
+
+    /* Platforms pill row */
+    .platforms {
+      display: flex; gap: 8px; flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .platform {
+      font-size: 12px; padding: 6px 12px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="step-indicator">
+      <div class="dot active" data-step="1"></div>
+      <div class="dot" data-step="2"></div>
+      <div class="dot" data-step="3"></div>
+      <div class="dot" data-step="4"></div>
+    </div>
+
+    <!-- STEP 1: Welcome -->
+    <section class="step active" data-step="1">
+      <div class="logo-row">
+        <div class="logo-dot"></div>
+        <span class="logo-text">Cue</span>
+      </div>
+      <h1>Welcome to Cue.</h1>
+      <p class="lede">
+        A real-time conversation intelligence layer for your video calls.
+        Cue listens to <strong>how</strong> you speak — pace, tension, energy — and nudges you
+        when it's time to slow down, breathe, or give the other person space.
+      </p>
+      <p class="lede" style="margin-top:-12px;">
+        It does not record, transcribe, or send audio anywhere. Everything runs on your device.
+      </p>
+      <div class="actions" style="justify-content:flex-end;">
+        <button class="btn primary" id="btn-next-1">Next</button>
+      </div>
+    </section>
+
+    <!-- STEP 2: What Cue does -->
+    <section class="step" data-step="2">
+      <h1>What you'll see on a call.</h1>
+      <p class="lede">
+        Cue joins any Teams, Zoom, or Meet call and shows a small widget in the corner.
+      </p>
+      <div class="features">
+        <div class="feature">
+          <div class="feature-icon">≡</div>
+          <div>
+            <div class="feature-title">Three live bars</div>
+            <div class="feature-desc">Tension, pace, and energy — all relative to your own baseline. The widget calibrates to you in the first 20 seconds.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">·</div>
+          <div>
+            <div class="feature-title">Subtle first-touch nudges</div>
+            <div class="feature-desc">The first time anything needs your attention, you'll see a faint glow on the screen edge. No text. No interruption.</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">!</div>
+          <div>
+            <div class="feature-title">Escalates only if ignored</div>
+            <div class="feature-desc">If you don't respond — keep talking fast, keep tension high — Cue steps up gradually. It never starts at "loud."</div>
+          </div>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">⤓</div>
+          <div>
+            <div class="feature-title">Integration Tape at the end</div>
+            <div class="feature-desc">When your call ends, a timeline opens showing your EQ score and every moment Cue flagged — so you can review what happened.</div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top: 18px; padding: 12px 14px; background: rgba(45,212,160,0.05); border: 1px solid rgba(45,212,160,0.2); border-radius: 10px; font-size: 12.5px; color: var(--muted); line-height: 1.5;">
+        <strong style="color: var(--text);">Using the Teams desktop app?</strong>
+        Cue can't reach inside Microsoft's native Teams app (Chrome extensions don't run there).
+        There's a 5-minute, one-time setup that gives you the same look-and-feel in a window Cue can see —
+        <a href="#" id="onb-teams-pwa-link" style="color: var(--accent); font-weight: 600;">open the setup guide</a>.
+      </div>
+      <div class="actions">
+        <button class="btn ghost" data-back>Back</button>
+        <button class="btn primary" id="btn-next-2">Next</button>
+      </div>
+    </section>
+
+    <!-- STEP 3: Nudge pack selection -->
+    <section class="step" data-step="3">
+      <h1>Pick your nudge style.</h1>
+      <p class="lede">
+        How do you want Cue to talk to you? You can change this anytime from the extension popup.
+      </p>
+      <div style="margin-bottom:20px;">
+        <label style="display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.6px;color:var(--muted);margin-bottom:6px;" for="onb-locale">Language</label>
+        <select id="onb-locale" style="width:100%;padding:10px 12px;font-size:14px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;">
+          <option value="en-US">English (US)</option>
+          <option value="en-GB">English (UK)</option>
+          <option value="es">Español</option>
+          <option value="de">Deutsch</option>
+          <option value="fr">Français</option>
+          <option value="pt">Português</option>
+          <option value="it">Italiano</option>
+        </select>
+      </div>
+      <div class="packs" id="packs">
+        <label class="pack" data-pack="gentle">
+          <div class="pack-head">
+            <div class="pack-name">Gentle</div>
+            <div class="pack-badge">Selected</div>
+          </div>
+          <div class="pack-desc">Soft phrasing, no commands. Default for most users.</div>
+          <div class="pack-example">Slow it down · Take a breath · Give them space</div>
+        </label>
+        <label class="pack" data-pack="directive">
+          <div class="pack-head">
+            <div class="pack-name">Directive</div>
+            <div class="pack-badge">Selected</div>
+          </div>
+          <div class="pack-desc">Short, all-caps imperatives. For coaching contexts or when you want crisp feedback.</div>
+          <div class="pack-example">SLOW DOWN · BREATHE. PAUSE. · LET THEM SPEAK</div>
+        </label>
+        <label class="pack" data-pack="minimal">
+          <div class="pack-head">
+            <div class="pack-name">Minimal</div>
+            <div class="pack-badge">Selected</div>
+          </div>
+          <div class="pack-desc">Glow only — no text cards at any intensity level. For the least intrusive experience.</div>
+          <div class="pack-example">(screen-edge glow, no words)</div>
+        </label>
+      </div>
+      <div class="actions">
+        <button class="btn ghost" data-back>Back</button>
+        <button class="btn primary" id="btn-next-3">Next</button>
+      </div>
+    </section>
+
+    <!-- STEP 4: Privacy + Ready -->
+    <section class="step" data-step="4">
+      <h1>Your data never leaves.</h1>
+      <div class="privacy-grid">
+        <div class="privacy-row">
+          <div class="privacy-row-icon">•</div>
+          <div>
+            <strong>Nothing is recorded.</strong>
+            <span>Cue analyzes audio features (pace, tension, energy) in real time and discards the raw audio immediately.</span>
+          </div>
+        </div>
+        <div class="privacy-row">
+          <div class="privacy-row-icon">•</div>
+          <div>
+            <strong>Nothing leaves your browser.</strong>
+            <span>All session data is stored locally in IndexedDB. No servers, no transcripts, no uploads.</span>
+          </div>
+        </div>
+        <div class="privacy-row">
+          <div class="privacy-row-icon">•</div>
+          <div>
+            <strong>You control the mic.</strong>
+            <span>Cue only starts when you click Start on the widget. Stop it anytime.</span>
+          </div>
+        </div>
+        <div class="privacy-row">
+          <div class="privacy-row-icon">•</div>
+          <div>
+            <strong>On-device voice vocabulary is opt-in.</strong>
+            <span>If you turn it on from the popup, Cue learns the phrases you use so nudges sound like you. Transcription runs entirely in your browser — nothing uploaded. Off by default.</span>
+          </div>
+        </div>
+      </div>
+      <p class="lede" style="margin-bottom:16px;">Cue works on:</p>
+      <div class="platforms">
+        <span class="platform">Microsoft Teams</span>
+        <span class="platform">Zoom</span>
+        <span class="platform">Google Meet</span>
+      </div>
+
+      <!-- Self-verification block: makes the privacy claim externally checkable -->
+      <div style="margin-top: 22px; padding: 14px 16px; background: rgba(45,212,160,0.04); border: 1px solid rgba(45,212,160,0.2); border-radius: 12px;">
+        <div style="font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: 0.6px; text-transform: uppercase; margin-bottom: 8px;">
+          Don&rsquo;t take our word for it
+        </div>
+        <div style="font-size: 13px; color: var(--text); line-height: 1.55; margin-bottom: 10px;">
+          You can verify the privacy claim yourself in 30 seconds.
+        </div>
+        <ol style="font-size: 12.5px; color: var(--muted); line-height: 1.6; padding-left: 18px; margin: 0;">
+          <li>Press <strong style="color: var(--text);">F12</strong> in any tab where Cue is running &rarr; click the <strong style="color: var(--text);">Network</strong> tab.</li>
+          <li>Start a coaching session. The Network tab will show <strong style="color: var(--accent);">zero outgoing requests</strong> from the extension during the session.</li>
+          <li>Open the built-in privacy verifier any time: <a href="#" id="onb-open-verify" style="color: var(--accent); font-weight: 600;">Cue &rarr; Verify privacy</a>.</li>
+        </ol>
+      </div>
+
+      <div class="actions">
+        <button class="btn ghost" data-back>Back</button>
+        <button class="btn primary" id="btn-finish">Start using Cue</button>
+      </div>
+    </section>
+  </div>
+
+  <script src="onboarding.js"></script>
+</body>
+</html>
