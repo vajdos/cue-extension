@@ -37,16 +37,39 @@
     });
   }
 
+  // --- v1.1.33 — Generate a 96-bit random device ID for the corpus.
+  // This is the ONLY identifier the corpus endpoint ever sees; never linked
+  // to email, IP (Vercel strips it), name, or browser fingerprint.
+  function _generateDeviceId() {
+    const buf = new Uint8Array(12); // 96 bits
+    crypto.getRandomValues(buf);
+    return Array.from(buf, b => b.toString(16).padStart(2, '0')).join('');
+  }
+
   // --- Enable Cue: persist consent + close the tab ---
   const enableBtn = document.getElementById('enableBtn');
   if (enableBtn) {
     enableBtn.addEventListener('click', async () => {
+      const corpusOptinEl = document.getElementById('corpusOptin');
+      const corpusOptIn = !!(corpusOptinEl && corpusOptinEl.checked);
       try {
-        await chrome.storage.local.set({
+        const payload = {
           cueOnboarded: true,
-          cueConsentVersion: 1,
+          // v2 (v1.1.33): consent flow now includes corpus telemetry disclosure
+          // with default-on opt-out checkbox. Bumped from v1 (v1.1.32 — no
+          // telemetry disclosure) so existing users get re-prompted if we
+          // ever ship a re-onboarding migration.
+          cueConsentVersion: 2,
           cueConsentAt: new Date().toISOString(),
-        });
+          cueCorpusOptIn: corpusOptIn,
+          cueCorpusOptInAt: corpusOptIn ? new Date().toISOString() : null,
+        };
+        // Only generate a device ID if the user opted in; never persist one
+        // for users who declined.
+        if (corpusOptIn) {
+          payload.cueDeviceId = _generateDeviceId();
+        }
+        await chrome.storage.local.set(payload);
       } catch (e) {
         console.warn('[Cue Onboarding] could not persist consent:', e);
       }

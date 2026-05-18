@@ -250,6 +250,30 @@
     </ul>
   </div>
 
+  <div class="corpus-optin" id="corpusOptinBox" style="
+    border: 1px solid #d8d4c8;
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 18px 0 14px 0;
+    background: #f6f4ee;
+    font-size: 13px;
+    line-height: 1.55;
+    color: #4a4a44;
+  ">
+    <label style="display:flex; gap:10px; align-items:flex-start; cursor:pointer;">
+      <input type="checkbox" id="corpusOptin" checked style="margin-top:3px;" />
+      <span>
+        <strong>Anonymous metrics on by default.</strong>
+        Cue sends anonymous session-level signal scores to its science corpus
+        to validate which patterns predict good listening. <strong>No audio,
+        no transcripts, no name, no email, no IP address</strong> &mdash; only
+        a random per-install ID and per-session signal scores (0&ndash;100
+        numbers like &ldquo;pace went from 72 to 58&rdquo;). Uncheck above to
+        opt out, or change anytime under Settings &rarr; Privacy.
+      </span>
+    </label>
+  </div>
+
   <div class="actions">
     <button class="btn-primary" id="enableBtn">Enable Cue</button>
     <button class="more" id="laterBtn">Maybe later</button>

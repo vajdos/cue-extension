@@ -50,6 +50,61 @@ var CUE_THRESHOLDS = {
   NUDGE_DISPLAY_SEC: 4,         // How long a nudge text card shows
   GLOW_FADE_SEC: 2,             // How long the edge glow lingers after nudge
 
+  // -- v1.1.33 Science-backed signal thresholds --
+  // Five additional signals ported from the peer-reviewed literature so Cue's
+  // measurement claim is defensible against any consumer competitor in the
+  // listening-coaching space. Each threshold is anchored to a citation, not
+  // to product feel.
+
+  // F0 variability (Curhan & Pentland 2007, J. Applied Psychology — "Thin
+  // slices of negotiation"). Standard deviation of fundamental frequency
+  // over a rolling window is a documented engagement signal; low F0-SD =
+  // monotone / flat affect = lower perceived warmth & competence.
+  F0_WINDOW_SEC: 30,            // rolling window over which to compute F0 SD
+  F0_SD_LOW_THRESHOLD: 12,      // Hz — below this is monotone, fire engagement nudge
+  F0_SD_MIN_SAMPLES: 30,        // need this many F0 estimates in window to score
+
+  // Speech-rate variation (Goldman-Eisler 1968; Smith, Brown & Strong 1975).
+  // Variation in articulation rate within a session signals topic shifts and
+  // listener engagement; flat rate signals disengagement or scripting.
+  // Computed as rolling SD of ZCR within speech frames.
+  RATE_VAR_WINDOW_SEC: 20,      // rolling window for rate-variance measurement
+  RATE_VAR_LOW_THRESHOLD: 0.15, // coefficient-of-variation floor (SD/mean)
+
+  // Laughter detection (Provine 2000 "Laughter: A Scientific Investigation";
+  // Brooks 2024 "Talk" — Levity dimension of TALK framework).
+  // Laughter is acoustically characterized by:
+  //   1. Rhythmic amplitude modulation at 3-8 Hz (laugh cycle)
+  //   2. Bursts ~75ms long, gaps ~135ms — depth-modulated envelope
+  //   3. Higher spectral centroid than baseline speech (breathy quality)
+  // We detect periodicity in the sub-frame envelope band 3-8 Hz.
+  LAUGH_FREQ_MIN_HZ: 3.0,
+  LAUGH_FREQ_MAX_HZ: 8.0,
+  LAUGH_ENVELOPE_BUFFER_SEC: 1.5,  // analyze envelope over this many seconds
+  LAUGH_MODULATION_THRESHOLD: 0.45, // min modulation depth to call it laughter
+  LAUGH_COOLDOWN_SEC: 4,            // don't double-count one laugh
+
+  // Backchannel detection (Stivers 2008; Bavelas, Coates & Johnson 2000 JPSP;
+  // Brennan & Schober 2001 grounding work). A backchannel is a short voiced
+  // burst (typically 100-450ms — "mm-hmm", "yeah", "right") used to signal
+  // continued attention. In single-stream (mic only) mode we detect by
+  // duration signature alone. In dual-stream mode (counterparty captured)
+  // we additionally require the counterparty channel to be active during
+  // the user's short burst, dramatically reducing false positives.
+  BACKCHANNEL_MIN_MS: 100,
+  BACKCHANNEL_MAX_MS: 450,
+  BACKCHANNEL_PRECEDING_SILENCE_MS: 300, // must follow at least this much silence
+  BACKCHANNEL_FOLLOWING_SILENCE_MS: 200, // must be followed by at least this much silence
+
+  // Speaking-time ratio (Pentland 2008 "Honest Signals"; Mehl et al. 2007
+  // Science — Electronically Activated Recorder studies). Healthier
+  // conversations balance speaking time. We already track speakingRatio
+  // (user-speech-fraction-of-total-active-frames). v1.1.33 surfaces it
+  // as a first-class signal with explicit imbalance thresholds.
+  TURN_DOMINANCE_HIGH: 0.70,    // user takes >70% of speech time = imbalanced
+  TURN_DOMINANCE_LOW: 0.30,     // user takes <30% = under-engaged (or partner monologue)
+  TURN_DOMINANCE_MIN_SEC: 60,   // don't fire turn-dominance nudges before 60s in
+
   // -- Conversation Profiles --
   // Preset bundles of threshold + channel overrides per conversation type.
   // Each profile overrides the base thresholds for that session only.

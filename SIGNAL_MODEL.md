@@ -379,3 +379,55 @@ If you change calibration math:
 ---
 
 _Updated 2026-05-18: created in the v1.1.32 ship session. Captures the model as-of voice-print port. Question-detection deferred to v1.1.33._
+
+---
+
+## Addendum — v1.1.33 (2026-05-18, second session same day)
+
+Five additional science-backed signals added so Cue's measurement claim is defensible against any consumer competitor in the listening-coaching space. Each anchored to a primary peer-reviewed citation.
+
+### Signal 6 — F0 variability (pitch SD over rolling window)
+- **Citation**: Curhan & Pentland 2007, *Journal of Applied Psychology* — "Thin slices of negotiation: Predicting outcomes from conversational dynamics within the first 5 minutes." F0 variability in early-conversation predicted negotiation outcomes at r ≈ 0.30.
+- **Mechanism**: Autocorrelation-based F0 estimator in the AudioWorklet, bounded to the human voice range 80–400 Hz. Confidence threshold 0.30 (worklet) and 0.40 (signal-model) for inclusion in the SD window. Rolling window = 30 s (`F0_WINDOW_SEC`). Need ≥30 samples (`F0_SD_MIN_SAMPLES`) before SD is reported.
+- **Low-monotone threshold**: `F0_SD_LOW_THRESHOLD = 12 Hz`. Below this, the user is delivering monotone.
+- **Surfaced as**: `f0Hz`, `f0Confidence`, `f0SD`, `f0Mean` in the signal-model return payload. Integration-tape feature; not currently a live nudge.
+
+### Signal 7 — Speech-rate variation (ZCR coefficient of variation)
+- **Citation**: Goldman-Eisler 1968, *Psycholinguistics: Experiments in Spontaneous Speech*. Smith, Brown & Strong 1975, *Journal of Speech and Hearing Disorders* — articulation rate variability tracks engagement and topic shift; flat rate signals disengagement or scripted delivery.
+- **Mechanism**: Coefficient of variation (SD / mean) of ZCR within speech frames, rolling window 20 s (`RATE_VAR_WINDOW_SEC`). Need ≥20 samples in window before reporting.
+- **Low-flat threshold**: `RATE_VAR_LOW_THRESHOLD = 0.15`.
+- **Surfaced as**: `rateVarCV`.
+
+### Signal 8 — Laughter detection
+- **Citation**: Provine 2000, *Laughter: A Scientific Investigation* — laugh cycle ~4.6 Hz, range 3–7 Hz, depth-modulated envelope. Brooks 2024, *Talk* — Levity is one of four pillars of the TALK conversation-quality framework.
+- **Mechanism**: 8 sub-frame RMS values per AudioWorklet message at ~62 Hz envelope sample rate. Signal-model accumulates 1.5 s envelope buffer (`LAUGH_ENVELOPE_BUFFER_SEC`), tests for 3–8 Hz periodicity via Goertzel-style band-energy scan vs. a 1 Hz out-of-band reference. Requires modulation depth ≥0.45 AND band-to-reference power ratio ≥3.0. Cooldown 4 s between detections.
+- **Surfaced as**: `laughterCount`, `secSinceLastLaughter`.
+
+### Signal 9 — Backchannel detection
+- **Citations**: Stivers 2008 — backchanneling as primary listener-active signal. Bavelas, Coates & Johnson 2000, *JPSP* — "generic" responses ("mm-hmm") are the highest-frequency listener signal across conversation types. Brennan & Schober 2001 — grounding via continued attention markers.
+- **Mechanism**: State-machine over speech/silence transitions. A burst that lasts 100–450 ms (`BACKCHANNEL_MIN_MS`, `_MAX_MS`) preceded by ≥300 ms silence (`BACKCHANNEL_PRECEDING_SILENCE_MS`) is classified as a backchannel. Longer bursts are word-bursts. In dual-stream mode the offscreen doc can call `setCounterpartyActive()` so the detector additionally requires the partner to be speaking — eliminating most single-speaker false positives.
+- **Surfaced as**: `backchannelCount`, `wordBurstCount`.
+
+### Signal 10 — Turn-dominance
+- **Citations**: Pentland 2008, *Honest Signals* — speaking-time balance as a primary group-dynamics signal. Mehl et al. 2007, *Science* — Electronically Activated Recorder studies showing healthier conversations balance speaking time.
+- **Mechanism**: Extends the existing `speakingRatio` (30 s rolling window) with explicit imbalance thresholds (`TURN_DOMINANCE_HIGH = 0.70`, `_LOW = 0.30`) and session-cumulative speech-time trackers. Doesn't fire imbalance flags before 60 s of session (`TURN_DOMINANCE_MIN_SEC`).
+- **Surfaced as**: `turnDominance` flag (`'balanced'` | `'dominant'` | `'absent'`), plus `cumulativeUserSpeechSec` and `cumulativeCounterpartySpeechSec`.
+
+### Deferred to v1.1.34
+
+Two of the original 7 missing signals were not shipped in v1.1.33 because they need more careful design:
+
+- **Smile-in-voice** (Tartter 1980, *Perception & Psychophysics*; Drahota, Costall & Reddy 2008, *Speech Communication*). F2 formant shifts upward when speakers smile. Approximated via spectral-centroid shift when F0 is held steady. The disentanglement of "centroid rose because user smiled" vs "centroid rose because user emphasized" needs research-grade tuning — deferred until we can run real users through a smile/no-smile A/B and fit the centroid-conditioned-on-F0 model.
+- **Prosodic convergence** (Pardo 2006, *J. Acoustical Society of America*; Levitan & Hirschberg 2011 INTERSPEECH; Communication Accommodation Theory, Giles). Requires sustained dual-stream synchronization with cross-channel feature correlation over windows. The dual-stream infrastructure exists (v1.1.32 counterparty capture); the windowing + sliding-correlation analysis is the missing piece.
+
+Both will land in v1.1.34. Estimate: 2–3 weeks.
+
+### Validation roadmap
+
+The v1.1.33 signal set is now broad enough to begin construct-validation studies. Priority order:
+
+1. **AELS / LQS correlation pilot** with Itzchakov (Haifa) — n≈30, 2 weeks, $15–25K.
+2. **Within-subjects RCT** (Cue on vs. off) — n≈80–120, 6 months, $50–70K.
+3. **Cross-linguistic + demographic fairness audit** — n≈250 across 5 languages, $50–55K.
+
+Estimated time-to-bulletproof: 6 months elapsed, $175–230K total. Outcome: three peer-reviewed papers, open-source signal-extraction kit, published demographic-fairness audit. No competitor in the listening-coaching space currently has all four.

@@ -80,8 +80,12 @@ chrome.runtime.onInstalled.addListener(async (details) => {
       cueLastSeenVersion: version
     });
 
-    // Open the onboarding flow in a new tab — only if the user has not
-    // already completed it (defensive against reinstall / dev-reload edge cases)
+    // v1.1.32 — Onboarding tab restored as the install-time consent screen.
+    // The onboarding/ folder is back in the shipping bundle (per
+    // manifest.json web_accessible_resources). On first install only
+    // (gated by chrome.storage.local.cueOnboarded), open the consent
+    // screen in a new tab. User clicks "Enable Cue" → consent is
+    // persisted + tab closes + side panel opens directly.
     try {
       const stored = await chrome.storage.local.get(['cueOnboarded']);
       if (!stored.cueOnboarded) {
@@ -89,7 +93,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
           url: chrome.runtime.getURL('onboarding/onboarding.html'),
           active: true
         });
-        console.log('[Cue] First-run onboarding tab opened.');
+        console.log('[Cue] Install-time onboarding tab opened.');
       }
     } catch (e) {
       console.warn('[Cue] Failed to open onboarding tab:', e);
@@ -253,6 +257,84 @@ chrome.contextMenus.onClicked.addListener((info) => {
 });
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// v1.1.33 — Corpus opt-in pipeline
+// ---------------------------------------------------------------------------
+//
+// When the user opted in during onboarding (or later from Settings), every
+// nudge that fires is posted to /api/corpus with the pre-signal state. A
+// follow-up call 30 seconds later attaches the post-signal state so the
+// server can compute behavior_changed.
+//
+// Privacy guarantees encoded here:
+//   - NO audio. The endpoint never accepts audio. We never call it with one.
+//   - NO transcripts. We never produce any.
+//   - NO email, IP (Vercel strips), name, or browser fingerprint.
+//   - The ONLY identifier is a 96-bit random `cueDeviceId` generated at
+//     opt-in time and stored in chrome.storage.local. Withdrawable by
+//     deleting that key from Settings.
+//
+// On opt-out the queue is cleared and no further posts fire.
+
+const CUE_CORPUS_ENDPOINT = 'https://cue-pwa.vercel.app/api/corpus';
+const CUE_CORPUS_VERSION  = '1.1.33';
+const CUE_CORPUS_SOURCE   = 'extension';
+
+async function cueCorpusEnabled() {
+  try {
+    const r = await chrome.storage.local.get(['cueCorpusOptIn', 'cueDeviceId']);
+    return !!(r.cueCorpusOptIn && r.cueDeviceId);
+  } catch (e) { return false; }
+}
+
+async function cuePostCorpusRecord(record) {
+  try {
+    const r = await chrome.storage.local.get(['cueCorpusOptIn', 'cueDeviceId']);
+    if (!r.cueCorpusOptIn || !r.cueDeviceId) return; // opt-in lapsed
+    const body = JSON.stringify({
+      device_id: r.cueDeviceId,
+      ts: record.ts || Date.now(),
+      nudge_type: record.nudge_type,
+      signals_before: record.signals_before || null,
+      signals_after:  record.signals_after  || null,
+      source: CUE_CORPUS_SOURCE,
+      client_version: CUE_CORPUS_VERSION,
+    });
+    // Fire-and-forget; do not block the nudge UI on the network.
+    fetch(CUE_CORPUS_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+      keepalive: true,
+    }).catch(() => { /* offline-tolerant */ });
+  } catch (e) { /* silent */ }
+}
+
+// Called from nudge fire-sites: posts the immediate pre-state, then 30s
+// later posts the matched post-state record.
+async function cueLogNudgeToCorpus(nudgeType, signalsBefore) {
+  if (!(await cueCorpusEnabled())) return;
+  const ts = Date.now();
+  cuePostCorpusRecord({ ts, nudge_type: nudgeType, signals_before: signalsBefore });
+  // 30s post-window: query the active session for current signals via
+  // runtime message. If no session, we send nothing for the post-half.
+  setTimeout(async () => {
+    if (!(await cueCorpusEnabled())) return;
+    try {
+      const reply = await chrome.runtime.sendMessage({ type: 'get_current_signals' });
+      if (reply && reply.signals) {
+        cuePostCorpusRecord({
+          ts, // same ts as the pre-record so the server can match the pair
+          nudge_type: nudgeType,
+          signals_before: signalsBefore,
+          signals_after: reply.signals,
+        });
+      }
+    } catch (e) { /* receiver may be gone */ }
+  }, 30_000);
+}
+
+// ---------------------------------------------------------------------------
 // Nudge Notifications — system-level notifications for nudges
 // ---------------------------------------------------------------------------
 
@@ -352,25 +434,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
       } catch (e) {}
 
-      // Cross-device haptic push via PWA Web Push endpoint
-      try {
-        const stored = await chrome.storage.local.get(['cueSettings']);
-        const email = stored.cueSettings?.syncEmail;
-        if (email) {
-          await fetch('https://cue-pwa.vercel.app/api/test-haptic', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email,
-              nudgeType: message.decision === 'PAUSE' ? 'pace' : 'longSpeech',
-              // Encode pulses in the vibration pattern (single vs. double tap)
-              vibrate: cfg.pulses === 1 ? [400] : [200, 150, 200],
-              title: cfg.title,
-              body: cfg.body,
-            }),
-          });
-        }
-      } catch (e) {}
+      // v1.1.30 — Cross-device haptic push removed (was upload of nudge metadata
+      // to cue-pwa.vercel.app/api/test-haptic). 'No upload' claim must hold
+      // at the byte level. Reintroduce in v2 with explicit consent UI.
+
 
       sendResponse({ ok: true });
     })();
@@ -538,6 +605,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (settings.cueSettings?.syncEmail) {
         pushNudgeCrossDevice(settings.cueSettings.syncEmail, message.nudgeType, message.text);
       }
+      // v1.1.33 — Opt-in corpus log. The signals_before payload is the
+      // current signal-model output snapshot supplied by panel.js.
+      // No audio, no PII, gated by cueCorpusOptIn + cueDeviceId presence.
+      cueLogNudgeToCorpus(message.nudgeType, message.signalsBefore || null);
     })();
     sendResponse({ status: 'ok' });
     return;
@@ -553,45 +624,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // Cross-device nudge push (sends to sync API which can relay to Apple Watch / phone)
-async function pushNudgeCrossDevice(email, nudgeType, text) {
-  try {
-    await fetch('https://cue-pwa.vercel.app/api/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email,
-        lastNudge: { type: nudgeType, text, timestamp: Date.now() },
-      }),
-    });
-  } catch (e) {
-    console.log('[Cue] Cross-device push failed:', e);
-  }
+async function pushNudgeCrossDevice(_email, _nudgeType, _text) {
+  // v1.1.30 — Cross-device nudge sync removed. Was uploading nudge text +
+  // user email to cue-pwa.vercel.app/api/sync. The 'no upload' privacy
+  // claim must hold at the byte level. NO-OP retained as a stub so call
+  // sites compile. Reintroduce in v2 with explicit consent UI.
+  return;
 }
 
-// Full sync — pull/push preferences and session data
-async function handleSync(email) {
-  if (!email) return { error: 'No email' };
-  try {
-    const stored = await chrome.storage.local.get(['cueSettings', 'cuePro', 'cueSessionCount']);
-    const response = await fetch('https://cue-pwa.vercel.app/api/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email,
-        deviceId: 'chrome-extension',
-        preferences: stored.cueSettings || {},
-        progress: {
-          totalSessions: stored.cueSessionCount || 0,
-          isPro: stored.cuePro || false,
-        },
-      }),
-    });
-    const result = await response.json();
-    await chrome.storage.local.set({ cueLastSync: new Date().toISOString() });
-    return { ok: true, lastSync: result.lastSync };
-  } catch (e) {
-    return { error: e.message };
-  }
+// v1.1.30 — handleSync removed. Was POSTing user email + preferences +
+// session counts to cue-pwa.vercel.app/api/sync. The 'no upload' privacy
+// claim must hold at the byte level — no network egress code in the bundle.
+// Sync returns a static error so the Settings UI's "Sync Now" button can
+// still call this and report cleanly. Reintroduce in v2 with explicit
+// consent UI + updated privacy disclosure.
+async function handleSync(_email) {
+  return { error: 'Sync removed in v1.1.30. Pending v2 redesign with explicit consent UI.' };
 }
 
 

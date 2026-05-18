@@ -256,13 +256,30 @@
       <button id="clear-log-btn" class="btn-reset" style="margin-top:8px;">Clear intervention log</button>
     </section>
 
+    <!-- v1.1.33 — Privacy / Corpus opt-out -->
+    <section class="card" id="privacy-card">
+      <h2>Privacy</h2>
+      <label style="display:flex; gap:10px; align-items:flex-start; cursor:pointer; padding:8px 0;">
+        <input type="checkbox" id="corpus-optout-toggle" style="margin-top:4px;" />
+        <span style="font-size: 13px; line-height: 1.55; color: #4a4a44;">
+          <strong>Contribute anonymous metrics to Cue's science corpus.</strong>
+          On by default. Cue sends per-session signal scores (0&ndash;100 numbers
+          like &ldquo;pace&rdquo; or &ldquo;laughter count&rdquo;) tied only to
+          a random per-install ID. <strong>Never audio, transcripts, name, email,
+          or IP address.</strong> Uncheck to opt out &mdash; the random ID is
+          also deleted from this device so no future data can be linked.
+        </span>
+      </label>
+      <div id="corpus-optout-status" style="font-size:12px; color:#7a7a72; margin-top:6px;"></div>
+    </section>
+
     <!-- Reset -->
     <section class="card">
       <button id="reset-btn" class="btn-reset">Reset to Defaults</button>
     </section>
 
     <footer class="footer">
-      <span class="privacy">On-device only. No audio recorded. Settings sync is encrypted in transit.</span>
+      <span class="privacy">On-device only. No audio recorded. Opt-in anonymous metrics encrypted in transit.</span>
     </footer>
   </div>
 

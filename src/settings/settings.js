@@ -310,4 +310,64 @@
   // Populate stats on load
   refreshExportStats();
 
+  // -------------------------------------------------------------------------
+  // v1.1.33 — Corpus opt-out toggle. Default-on; toggle lets the user
+  // withdraw consent at any time. Withdrawal wipes cueDeviceId so no future
+  // data can be associated with the old identifier.
+  // -------------------------------------------------------------------------
+
+  function _generateDeviceId() {
+    const buf = new Uint8Array(12);
+    crypto.getRandomValues(buf);
+    return Array.from(buf, b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  async function loadCorpusToggle() {
+    const toggleEl = document.getElementById('corpus-optout-toggle');
+    const statusEl = document.getElementById('corpus-optout-status');
+    if (!toggleEl) return;
+    const r = await chrome.storage.local.get(['cueCorpusOptIn', 'cueDeviceId', 'cueCorpusOptInAt']);
+    const optedIn = (r.cueCorpusOptIn !== false); // default-on semantics
+    toggleEl.checked = optedIn;
+    if (statusEl) {
+      if (optedIn && r.cueCorpusOptInAt) {
+        statusEl.textContent = 'Contributing since ' + new Date(r.cueCorpusOptInAt).toLocaleDateString();
+      } else if (optedIn) {
+        statusEl.textContent = 'Contributing (no record of opt-in date).';
+      } else {
+        statusEl.textContent = 'Opted out.';
+      }
+    }
+  }
+
+  async function onCorpusToggleChanged(e) {
+    const checked = !!e.target.checked;
+    const statusEl = document.getElementById('corpus-optout-status');
+    if (checked) {
+      // Re-opt-in. Generate a NEW device ID so a previous opt-out period
+      // stays unlinkable to this fresh contribution stream.
+      await chrome.storage.local.set({
+        cueCorpusOptIn: true,
+        cueDeviceId: _generateDeviceId(),
+        cueCorpusOptInAt: new Date().toISOString(),
+      });
+      if (statusEl) statusEl.textContent = 'Contributing — thank you.';
+    } else {
+      // Opt-out. Wipe the device ID. Past records remain in the corpus
+      // tied to the old ID but are unjoinable to this device going forward.
+      await chrome.storage.local.set({
+        cueCorpusOptIn: false,
+        cueCorpusOptInAt: null,
+      });
+      await chrome.storage.local.remove('cueDeviceId');
+      if (statusEl) statusEl.textContent = 'Opted out. Device ID wiped.';
+    }
+  }
+
+  const corpusToggleEl = document.getElementById('corpus-optout-toggle');
+  if (corpusToggleEl) {
+    corpusToggleEl.addEventListener('change', onCorpusToggleChanged);
+    loadCorpusToggle();
+  }
+
 })();
