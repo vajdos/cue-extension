@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Cue — Real-Time Conversation Intelligence",
-  "version": "1.2.0",
+  "version": "1.1.17",
   "description": "A real-time conversation intelligence layer for video calls. Processes voice acoustics on-device to help you listen better.",
   "minimum_chrome_version": "116",
   "permissions": [
@@ -13,7 +13,8 @@
     "contextMenus",
     "sidePanel",
     "offscreen",
-    "tabCapture"
+    "tabCapture",
+    "scripting"
   ],
   "background": {
     "service_worker": "src/background/service-worker.js"
@@ -81,7 +82,8 @@
         "offscreen/offscreen.html",
         "offscreen/offscreen.js",
         "onboarding/onboarding.html",
-        "onboarding/onboarding.js"
+        "onboarding/onboarding.js",
+        "src/signal/voice-print.js"
       ],
       "matches": [
         "<all_urls>"
@@ -100,11 +102,14 @@
   },
   "commands": {
     "_execute_action": {
+      "description": "Click the Cue toolbar icon to open the side panel (no hotkey — keeping Alt+C for the session toggle since that's the most common action)"
+    },
+    "toggle-session": {
       "suggested_key": {
-        "default": "Alt+C",
-        "mac": "Alt+C"
+        "default": "Ctrl+Space",
+        "mac": "MacCtrl+Space"
       },
-      "description": "Open Cue"
+      "description": "Start or stop a Cue listening session — single-hand, side-by-side keys (Wispr Ctrl+Win analog within Chrome's allowed modifiers). Auto-opens the side panel if needed."
     }
   }
 }

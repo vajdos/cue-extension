@@ -238,6 +238,67 @@
   // RENDERING
   // ============================================================
 
+  // v1.1.0 — Mode-aware labeling + replicant trend
+  // Source mode determines whose EQ score this is. Replicant trend shows the
+  // user how their personalized baseline is converging toward their actual norms.
+  function renderModeAndReplicantBlock(tape) {
+    let target = document.getElementById('tape-mode-replicant');
+    if (!target) {
+      // Inject the block right after the EQ score section if HTML doesn't already include it
+      const anchor = document.getElementById('tape-eq-score');
+      if (!anchor) return;
+      target = document.createElement('div');
+      target.id = 'tape-mode-replicant';
+      target.style.cssText = 'margin: 18px 0 4px; padding: 14px 16px; background: rgba(45,212,160,0.04); border: 1px solid rgba(45,212,160,0.18); border-radius: 12px; font-family: \'Segoe UI\', system-ui, sans-serif;';
+      const parent = anchor.closest('section') || anchor.parentElement;
+      if (parent && parent.parentNode) parent.parentNode.insertBefore(target, parent.nextSibling);
+    }
+
+    let html = '';
+
+    // Mode label — only shown when not the default "Your" mode
+    if (tape.source && tape.source !== 'mic') {
+      const labelText = tape.sourceLabel === 'Their'
+        ? 'Their conversation score'
+        : 'Conversation score (both speakers)';
+      html += '<div style="font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: #248A3D; margin-bottom: 6px;">' + labelText + '</div>';
+      if (tape.sourceContext) {
+        html += '<div style="font-size: 12.5px; color: rgba(29,29,31,0.7); line-height: 1.45; margin-bottom: 10px;">' + tape.sourceContext + '</div>';
+      }
+    }
+
+    // Replicant trend block
+    if (tape.replicant) {
+      const r = tape.replicant;
+      const sessionsTrained = r.sessionCount || 0;
+      const isFresh = r.isPopulationDefault;
+      const pct = Math.round(r.convergenceProgress * 100);
+
+      let summary;
+      if (isFresh || sessionsTrained === 0) {
+        summary = 'Cue is using a population-default baseline. After this session, your replicant will start training.';
+      } else if (sessionsTrained < 10) {
+        summary = 'Your replicant has trained on <strong>' + sessionsTrained + ' session' + (sessionsTrained === 1 ? '' : 's') + '</strong>. ~' + (10 - sessionsTrained) + ' more to fully converge on your personal norms.';
+      } else {
+        summary = 'Your replicant is fully converged (<strong>' + sessionsTrained + ' sessions</strong>) and recalibrates incrementally each call.';
+      }
+
+      html += '<div style="font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(29,29,31,0.5); margin-bottom: 4px;">Your replicant</div>';
+      html += '<div style="font-size: 13px; color: rgba(29,29,31,0.85); line-height: 1.5; margin-bottom: 8px;">' + summary + '</div>';
+      // tiny progress bar
+      html += '<div style="height: 4px; background: rgba(0,0,0,0.05); border-radius: 2px; overflow: hidden;">' +
+        '<div style="height: 100%; width: ' + pct + '%; background: #2DD4A0; transition: width 0.6s ease;"></div>' +
+        '</div>';
+    }
+
+    if (html) {
+      target.innerHTML = html;
+      target.style.display = '';
+    } else {
+      target.style.display = 'none';
+    }
+  }
+
   function renderTape(tape) {
     // Hide loading, show content
     document.getElementById('tape-loading').style.display = 'none';
@@ -251,6 +312,9 @@
     // EQ Score
     document.getElementById('tape-eq-score').textContent = tape.eqScore.total;
     drawEQRing(tape.eqScore.total);
+
+    // v1.1.0 — Mode-aware label + replicant trend block (injected dynamically into the page header)
+    renderModeAndReplicantBlock(tape);
 
     // Comparison
     if (tape.comparison && tape.comparison.delta !== null) {
@@ -280,6 +344,26 @@
 
     // Emotional Arc chart
     drawEmotionalArc(tape.emotionalArc);
+
+    // v1.1.6 — What You Nailed (positive feedback)
+    if (tape.bestMoment) {
+      const bestSection = document.getElementById('tape-best-moment');
+      if (bestSection) {
+        bestSection.style.display = 'block';
+        const mins = Math.floor(tape.bestMoment.secondsIntoCall / 60);
+        const secs = tape.bestMoment.secondsIntoCall % 60;
+        const timeEl = document.getElementById('tape-best-time');
+        const descEl = document.getElementById('tape-best-desc');
+        const tEl = document.getElementById('tape-best-t');
+        const pEl = document.getElementById('tape-best-p');
+        const eEl = document.getElementById('tape-best-e');
+        if (timeEl) timeEl.textContent = mins + ':' + String(secs).padStart(2, '0');
+        if (descEl) descEl.textContent = tape.bestMoment.why || '';
+        if (tEl) tEl.textContent = tape.bestMoment.tension;
+        if (pEl) pEl.textContent = tape.bestMoment.pace;
+        if (eEl) eEl.textContent = tape.bestMoment.energy;
+      }
+    }
 
     // Moment You Missed
     if (tape.missedMoment) {

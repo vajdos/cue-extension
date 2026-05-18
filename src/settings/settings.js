@@ -35,6 +35,11 @@
   const packRadio = document.querySelector(`input[name="nudgePack"][value="${settings.nudgePack}"]`);
   if (packRadio) packRadio.checked = true;
 
+  // v1.1.7 — Tone flavor (for playful pack)
+  const flavor = settings.toneFlavor || 'neutral';
+  const flavorRadio = document.querySelector(`input[name="toneFlavor"][value="${flavor}"]`);
+  if (flavorRadio) flavorRadio.checked = true;
+
   // Coaching intensity
   const ciRadio = document.querySelector(`input[name="coachingIntensity"][value="${settings.coachingIntensity || 'gentle'}"]`);
   if (ciRadio) ciRadio.checked = true;
@@ -79,8 +84,21 @@
 
   // ---- Event Listeners ----
 
+  // v1.1.7 — Show/hide the playful tone-flavor selector based on chosen pack
+  function refreshFlavorVisibility() {
+    const playfulSelected = document.querySelector('input[name="nudgePack"]:checked')?.value === 'playful';
+    const flavorCard = document.getElementById('tone-flavor-card');
+    if (flavorCard) flavorCard.style.display = playfulSelected ? '' : 'none';
+  }
+  refreshFlavorVisibility();
+
   // Nudge pack change
   document.querySelectorAll('input[name="nudgePack"]').forEach(radio => {
+    radio.addEventListener('change', () => { refreshFlavorVisibility(); save(); });
+  });
+
+  // v1.1.7 — Tone flavor selector (only matters when 'playful' pack is active)
+  document.querySelectorAll('input[name="toneFlavor"]').forEach(radio => {
     radio.addEventListener('change', () => save());
   });
 
@@ -168,6 +186,8 @@
 
   async function save() {
     const pack = document.querySelector('input[name="nudgePack"]:checked')?.value || 'gentle';
+    // v1.1.7 — playful sub-flavor; ignored unless pack === 'playful'
+    const flavor = document.querySelector('input[name="toneFlavor"]:checked')?.value || 'neutral';
     const intensity = document.querySelector('input[name="coachingIntensity"]:checked')?.value || 'gentle';
 
     const ch = ['visual'];
@@ -179,6 +199,7 @@
 
     settings = {
       nudgePack: pack,
+      toneFlavor: flavor,    // v1.1.7
       nudgeChannels: ch,
       coachingIntensity: intensity,
       soundVolume: parseInt(document.getElementById('sound-volume').value),

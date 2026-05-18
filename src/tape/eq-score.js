@@ -258,6 +258,102 @@ const CueEQScore = (function () {
   }
 
   /**
+   * v1.1.3 — Find the BEST moment of the call. The mirror of findMissedMoment.
+   * Every session has at least one moment of strong listening behavior — Cue's
+   * job is to surface it so the user feels recognized for what they did right.
+   *
+   * Three patterns scored, highest wins:
+   *  A) Strategic pause AFTER speech — calm tension + low pace + recent silence
+   *  B) Sustained calm regulation during speech — low tension + measured pace
+   *  C) Question prosody followed by silence — they asked a question and gave space
+   *
+   * @param {Array} frames - sequence of {tension, pace, energy, isSpeech, timestamp}
+   * @returns {Object|null} - { secondsIntoCall, kind, why, tension, pace, energy }
+   */
+  function findBestMoment(frames) {
+    if (!frames || frames.length < 10) return null;
+
+    let bestMoment = null;
+    let bestScore = 0;
+
+    for (let i = 5; i < frames.length - 2; i++) {
+      const frame = frames[i];
+
+      // Pattern A: Strategic pause after speaking (silence following speech with calm prior tension)
+      if (!frame.isSpeech && frames[i-1] && frames[i-1].isSpeech) {
+        const priorWindow = frames.slice(Math.max(0, i-5), i);
+        const calmPrior = priorWindow.every(f => f.tension < 60 && f.pace < 65);
+        // pause holds for at least 2 frames (~2s)
+        const heldPause = (i+1 < frames.length) && !frames[i+1].isSpeech;
+        if (calmPrior && heldPause) {
+          const score = 80 + (60 - (priorWindow.reduce((a,f) => a+f.tension, 0) / priorWindow.length)) * 0.5;
+          if (score > bestScore) {
+            bestScore = score;
+            bestMoment = {
+              frameIndex: i,
+              timestamp: frame.timestamp,
+              kind: 'strategic_pause',
+              why: 'You finished speaking and gave them space — a deliberate silence after your turn.',
+              secondsIntoCall: i,
+              tension: Math.round(priorWindow[priorWindow.length-1].tension),
+              pace: Math.round(priorWindow[priorWindow.length-1].pace),
+              energy: Math.round(priorWindow[priorWindow.length-1].energy),
+            };
+          }
+        }
+      }
+
+      // Pattern B: Sustained calm regulation (5+ consecutive speech frames at low tension and pace)
+      if (frame.isSpeech) {
+        const window = frames.slice(i, Math.min(frames.length, i+5));
+        if (window.length >= 5 && window.every(f => f.isSpeech && f.tension < 50 && f.pace < 60)) {
+          const avgTension = window.reduce((a,f) => a+f.tension, 0) / window.length;
+          const score = 70 + (50 - avgTension);
+          if (score > bestScore) {
+            bestScore = score;
+            bestMoment = {
+              frameIndex: i,
+              timestamp: frame.timestamp,
+              kind: 'calm_stretch',
+              why: 'You held a calm tone and steady pace for 5+ seconds — your voice was welcoming.',
+              secondsIntoCall: i,
+              tension: Math.round(avgTension),
+              pace: Math.round(window.reduce((a,f) => a+f.pace, 0) / window.length),
+              energy: Math.round(window.reduce((a,f) => a+f.energy, 0) / window.length),
+            };
+          }
+        }
+      }
+    }
+
+    // Fallback: if nothing exceptional, just point to the LOWEST-tension speech moment
+    if (!bestMoment) {
+      let lowest = Infinity;
+      let lowestIdx = -1;
+      for (let i = 0; i < frames.length; i++) {
+        if (frames[i].isSpeech && frames[i].tension < lowest) {
+          lowest = frames[i].tension;
+          lowestIdx = i;
+        }
+      }
+      if (lowestIdx >= 0 && lowest < 75) {
+        bestMoment = {
+          frameIndex: lowestIdx,
+          timestamp: frames[lowestIdx].timestamp,
+          kind: 'calm_moment',
+          why: 'Your calmest speaking moment of this call.',
+          secondsIntoCall: lowestIdx,
+          tension: Math.round(lowest),
+          pace: Math.round(frames[lowestIdx].pace),
+          energy: Math.round(frames[lowestIdx].energy),
+        };
+      }
+    }
+
+    return bestMoment;
+  }
+
+  /**
    * Generate a micro-skill recommendation based on the session's dominant issue.
    *
    * @param {Object} eqScore - Output from compute()
@@ -329,6 +425,7 @@ const CueEQScore = (function () {
   return {
     compute,
     findMissedMoment,
+    findBestMoment,
     getMicroSkill
   };
 })();

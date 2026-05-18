@@ -167,22 +167,42 @@ body {
 }
 
 .p-bar-track {
-  height: 6px;
+  height: 8px;
   background: rgba(0,0,0,.06);
-  border-radius: 3px;
+  border-radius: 4px;
   overflow: hidden;
+  position: relative;
+}
+
+/* v1.1.3 — goal-clarity zone. The replicant calibration maps your normal range
+   to the 25-75 band, so the GOAL is to stay in the middle, not max the bar.
+   This faint teal stripe makes that visible at a glance. */
+.p-bar-track::before {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  left: 25%;
+  width: 50%;
+  background: rgba(45, 212, 160, 0.10);
+  border-left: 1px dashed rgba(45, 212, 160, 0.35);
+  border-right: 1px dashed rgba(45, 212, 160, 0.35);
+  z-index: 0;
+  pointer-events: none;
 }
 
 .p-bar-fill {
   height: 100%;
   border-radius: 3px;
   width: 0%;
-  transition: width 150ms ease-out;
+  position: relative;
+  z-index: 1;
+  transition: width 320ms ease-out;  /* v1.1.3 — 150ms→320ms for calmer motion */
 }
 
 .p-bar-fill.p-bar-tension { background: linear-gradient(90deg, #FCA5A5, #EF4444); }
 .p-bar-fill.p-bar-pace    { background: linear-gradient(90deg, #FDE68A, #F59E0B); }
 .p-bar-fill.p-bar-energy  { background: linear-gradient(90deg, #93C5FD, #3B82F6); }
+.p-bar-fill.p-bar-pause   { background: linear-gradient(90deg, #248A3D, #2DD4A0); }
 
 /* ===== Source Picker (Me / Them) ===== */
 .p-source-picker {
@@ -624,6 +644,35 @@ body {
 .p-privacy {
   font-weight: 500;
 }
+
+/* ===== v1.1.16 — Apple Watch haptic CTA ===== */
+.p-watch-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: linear-gradient(180deg, rgba(45,212,160,.10), rgba(45,212,160,.05));
+  border: 1px solid rgba(45,212,160,.25);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin: 10px 0 6px;
+}
+.p-watch-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.p-watch-title { font-size: 12px; font-weight: 600; color: #1D1D1F; }
+.p-watch-sub   { font-size: 10.5px; color: rgba(29,29,31,.62); line-height: 1.35; }
+.p-watch-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.p-watch-btn {
+  background: #2DD4A0; color: #fff; text-decoration: none;
+  font-size: 11px; font-weight: 600; padding: 6px 10px; border-radius: 8px;
+  white-space: nowrap; transition: background .15s;
+}
+.p-watch-btn:hover { background: #20B084; }
+.p-watch-dismiss {
+  background: transparent; border: none; color: rgba(29,29,31,.36);
+  font-size: 18px; line-height: 1; cursor: pointer; padding: 2px 6px;
+  border-radius: 6px;
+}
+.p-watch-dismiss:hover { color: rgba(29,29,31,.62); background: rgba(29,29,31,.05); }
 
 /* ===== Responsive fine-tuning ===== */
 @media (max-width: 320px) {

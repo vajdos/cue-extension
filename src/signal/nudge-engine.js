@@ -30,6 +30,15 @@ class CueNudgeEngine {
       escalation: 0
     };
 
+    // v1.1.15 — quick-reaction: detect sudden pace acceleration so the user
+    // gets a nudge BEFORE the 5-frame sustain window. We track the prior pace
+    // value; if it jumps >= QUICK_PACE_DELTA in a single frame and crosses the
+    // threshold, fire immediately. Has its own short cooldown so we don't spam.
+    this._lastPace = 0;
+    this._lastQuickPaceTime = 0;
+    this._QUICK_PACE_DELTA = 22;       // points jump required
+    this._QUICK_PACE_COOLDOWN = 4;     // seconds between quick-fires
+
     // Statistics
     this._nudgeCount = 0;
     this._nudgeHistory = [];  // { type, timestamp, scores }
@@ -76,6 +85,22 @@ class CueNudgeEngine {
 
     // -- Update sustain counters --
     this._updateCounters(signal);
+
+    // v1.1.15 — QUICK-REACTION pace: bypass sustain when pace jumps suddenly.
+    // Nathan: "When I immediately accelerate my pace, the reaction needs to
+    // be quick to get my attention." Fires the moment a real spike crosses
+    // the threshold, so the user gets feedback in <200ms instead of ~640ms.
+    const paceDelta = signal.pace - this._lastPace;
+    const secSinceQuickPace = (now - this._lastQuickPaceTime) / 1000;
+    if (paceDelta >= this._QUICK_PACE_DELTA &&
+        signal.pace > CUE_THRESHOLDS.PACE_THRESHOLD &&
+        secSinceQuickPace >= this._QUICK_PACE_COOLDOWN) {
+      this._lastQuickPaceTime = now;
+      this._lastPace = signal.pace;
+      this._fireNudge('pace', signal, now);
+      return;
+    }
+    this._lastPace = signal.pace;
 
     // -- Check triggers in priority order --
     // Priority: escalation > tension > pace > long_speech

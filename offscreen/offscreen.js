@@ -24,6 +24,23 @@
   let isActive = false;
   let wasCalibrating = true;  // used to detect the calibration→done edge
   let currentSessionId = null;
+  // v1.1.1 — port of session-save pipeline from content-script.js so sessions
+  // are persisted to IndexedDB regardless of the page Cue is running on.
+  // Without this, Progress was empty whenever Cue was used outside a Teams/Zoom/Meet URL.
+  let sessionStartTime = null;
+  let frameBuffer = [];
+  let frameStoreInterval = null;
+  let nudgeHistoryLog = [];   // [{ type, message, timestamp, ...signalSnapshot }]
+  let lastFrameAccumTime = 0;
+  const FRAME_ACCUM_INTERVAL = 1000;  // accumulate 1 frame per second for IndexedDB
+
+  // v1.1.1 — flush buffered frames to IndexedDB. Called every 1s by setInterval.
+  // No-op if buffer empty or CueDB unavailable.
+  function flushFrames() {
+    if (!frameBuffer.length || typeof CueDB === 'undefined' || !CueDB.addFrames) return;
+    const batch = frameBuffer.splice(0, frameBuffer.length);
+    CueDB.addFrames(batch).catch(err => console.warn('[Offscreen] addFrames failed:', err));
+  }
   let pendingOutcomes = [];
   let lastQuestionCount = 0;
   let askQuestionPrompt = null;
@@ -109,10 +126,21 @@
       }
 
       currentSessionId = 'sess-' + Date.now();
+      sessionStartTime = Date.now();
+      frameBuffer = [];
+      nudgeHistoryLog = [];
       pendingOutcomes = [];
       lastQuestionCount = 0;
       askQuestionPrompt = null;
       pausePrompt = null;
+
+      // v1.1.1 — Open IndexedDB and start periodic frame flush so the tape +
+      // progress page have data to render. Mirrors the content-script pipeline.
+      if (typeof CueDB !== 'undefined' && CueDB.open) {
+        CueDB.open().catch(err => console.warn('[Offscreen] CueDB.open failed:', err));
+        if (frameStoreInterval) clearInterval(frameStoreInterval);
+        frameStoreInterval = setInterval(flushFrames, 1000);  // batch every 1s
+      }
 
       signalModel = new CueSignalModel();
       nudgeEngine = new CueNudgeEngine(onNudge, { isPro });
@@ -120,14 +148,23 @@
         intensity: options.coachingIntensity || 'gentle',
       });
       decisionEngine = new CueDecisionEngine(onDecision, {
-        // Tuned for real-call context — practice sessions will still hit the
-        // ratio quickly since there's no other speaker. For solo practice,
-        // the ASK_QUESTION decision is the more useful signal.
-        speakingRatioThreshold: 0.85,   // was 0.75 — too aggressive in practice
-        questionSilenceSec: 60,
-        cooldownSec: 15,                 // was 5 — give the nudge time to breathe
-        gracePeriodSec: 15,              // was 10
-        interruptionCooldownSec: 20,     // was 8
+        // v1.1.12 — Nathan reports "I'm not sure if it's actually inviting
+        // anyone in". The ASK_QUESTION decision wasn't firing because the
+        // bars were too high. Relaxing for real conversation:
+        //   - speakingRatio 0.85 → 0.65 — fires when you've spoken 65%+ of last 30s
+        //   - questionSilence 60 → 30 — nudge to ask if it's been 30s without a question
+        //   - cooldown 15 → 8 — let nudges breathe but don't be silent
+        //   - grace 15 → 6 — start helping fast
+        speakingRatioThreshold: 0.65,
+        questionSilenceSec: 30,
+        cooldownSec: 8,
+        gracePeriodSec: 6,
+        interruptionCooldownSec: 12,
+        // v1.1.15 — gate interruption-PAUSE to dual-stream modes only.
+        // In mic-only mode, micro-pauses from solo speech were falsely
+        // firing as "you interrupted someone". The user can't interrupt
+        // anyone we can't hear.
+        source: options.source || 'mic',
       });
       latencyMonitor = new CueLatencyMonitor({
         onHealthChange: (healthy, latency) => {
@@ -241,11 +278,120 @@
       interruptionDetector.reset();
       interruptionDetector = null;
     }
+    // v1.1.0 REPLICANT — unconditional session-end persist, regardless of whether
+    // _finishCalibration ran. If calibration completed mid-session, this is a no-op
+    // (baseline already saved). If calibration never fired (short session, low speech
+    // density), we still capture the current state so the replicant doesn't silently
+    // miss an entire session. Also bubbles a status log up to the side panel via the
+    // existing service worker message bus so we can see it from anywhere.
+    if (signalModel) {
+      try {
+        if (typeof signalModel._persistReplicant === 'function') {
+          signalModel._persistReplicant();
+          chrome.runtime.sendMessage({
+            target: 'cue-ui',
+            type: 'cue-debug',
+            from: 'offscreen',
+            event: 'replicant-session-end-persist',
+            sessionCount: signalModel._baseline && signalModel._baseline.sessionCount,
+            isPopulationDefault: signalModel._baseline && signalModel._baseline.isPopulationDefault,
+            calibrationCompleted: signalModel._calibrationCompleted,
+            speechTimeSec: signalModel._speechTimeSec,
+            calSamplesCount: signalModel._calSamples && signalModel._calSamples.rms ? signalModel._calSamples.rms.length : 0,
+          }).catch(() => {});
+        }
+      } catch (e) {
+        console.warn('[Cue Offscreen] replicant session-end persist failed:', e);
+      }
+    }
     signalModel = null;
     nudgeEngine = null;
     if (coachingEngine) { coachingEngine.reset(); coachingEngine = null; }
     if (decisionEngine) { decisionEngine.reset(); decisionEngine = null; }
     if (latencyMonitor) { latencyMonitor.reset(); latencyMonitor = null; }
+
+    // v1.1.1 — Stop frame accumulation, flush remaining buffered frames to IndexedDB,
+    // compute the EQ score, save the session record, prune old sessions, then dispatch
+    // sessionEnd so the service worker can auto-open the Integration Tape.
+    if (frameStoreInterval) {
+      clearInterval(frameStoreInterval);
+      frameStoreInterval = null;
+    }
+    flushFrames();
+
+    if (currentSessionId && typeof CueDB !== 'undefined' && CueDB.saveSession) {
+      const sid = currentSessionId;
+      const startedAt = sessionStartTime || Date.now();
+      const endedAt = Date.now();
+      const nudges = nudgeHistoryLog.slice();
+
+      // Build + save session asynchronously, then dispatch sessionEnd. We wait a beat
+      // so the IndexedDB writes complete before the tape tab tries to read them.
+      (async () => {
+        try {
+          const frames = await CueDB.getFrames(sid).catch(() => []);
+          const eqScore = (typeof CueEQScore !== 'undefined' && CueEQScore.compute)
+            ? CueEQScore.compute(frames || [], nudges)
+            : { total: 0, tensionStability: 0, strategicPausing: 0, energyRegulation: 0 };
+
+          const session = {
+            id: sid,
+            startTime: startedAt,
+            endTime: endedAt,
+            duration: endedAt - startedAt,
+            eqScore: eqScore.total,
+            eqBreakdown: {
+              tensionStability: eqScore.tensionStability,
+              strategicPausing: eqScore.strategicPausing,
+              energyRegulation: eqScore.energyRegulation,
+            },
+            nudgeCount: nudges.length,
+            nudgeHistory: nudges,
+            frameCount: (frames || []).length,
+            source: 'offscreen',  // signals this session came from offscreen pipeline
+          };
+
+          await CueDB.saveSession(session);
+          console.log('[Offscreen] Session saved to IndexedDB:', sid, 'EQ:', eqScore.total, 'frames:', session.frameCount);
+
+          // Increment "Taste of Pro" session counter
+          try {
+            const r = await chrome.storage.local.get('cueSessionCount');
+            const next = (r.cueSessionCount || 0) + 1;
+            await chrome.storage.local.set({ cueSessionCount: next });
+          } catch (e) {}
+
+          if (CueDB.pruneOldSessions) {
+            await CueDB.pruneOldSessions(20).catch(() => {});
+          }
+
+          // NOW dispatch sessionEnd — guaranteed the tape can find it in IndexedDB
+          chrome.runtime.sendMessage({
+            type: 'sessionEnd',
+            sessionId: sid,
+            eqScore: eqScore.total,
+          }).catch(() => {});
+          console.log('[Offscreen] sessionEnd dispatched →', sid);
+        } catch (err) {
+          console.error('[Offscreen] session save pipeline failed:', err);
+          // Still dispatch so the tape attempt happens (it'll show "session not found" gracefully)
+          try {
+            chrome.runtime.sendMessage({
+              type: 'sessionEnd',
+              sessionId: sid,
+              eqScore: null,
+            }).catch(() => {});
+          } catch (e) {}
+        }
+      })();
+    } else {
+      // CueDB not available — still let the badge update via existing logic
+      console.warn('[Offscreen] CueDB unavailable — session not saved');
+    }
+
+    sessionStartTime = null;
+    nudgeHistoryLog = [];
+    frameBuffer = [];
     currentSessionId = null;
     pendingOutcomes = [];
     lastQuestionCount = 0;
@@ -361,6 +507,21 @@
       });
       lastBroadcast = now;
     }
+
+    // v1.1.1 — accumulate frame for IndexedDB write (1 frame/sec via flushFrames).
+    // The full per-frame stream would be too dense; we sub-sample at the broadcast interval.
+    if (currentSessionId && now - lastFrameAccumTime >= FRAME_ACCUM_INTERVAL) {
+      frameBuffer.push({
+        sessionId: currentSessionId,
+        timestamp: now,
+        tension: Math.round(signal.tension),
+        pace: Math.round(signal.pace),
+        energy: Math.round(signal.energy),
+        isSpeech: !!signal.isSpeech,
+        rms: features.rms,
+      });
+      lastFrameAccumTime = now;
+    }
   }
 
   function onNudge(nudgeEvent) {
@@ -371,6 +532,16 @@
       scores: nudgeEvent.scores,
       nudgeNumber: nudgeEvent.nudgeNumber,
       timestamp: nudgeEvent.timestamp,
+    });
+
+    // v1.1.1 — accumulate for the session record so the tape can render the
+    // nudge history breakdown ('pace' / 'tension' / 'long_speech' / 'escalation' counts).
+    nudgeHistoryLog.push({
+      type: nudgeEvent.type,
+      message: nudgeEvent.message,
+      timestamp: nudgeEvent.timestamp,
+      scores: nudgeEvent.scores,
+      nudgeNumber: nudgeEvent.nudgeNumber,
     });
   }
 

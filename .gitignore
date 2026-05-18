@@ -33,3 +33,11 @@ yarn-debug.log*
 # Test screenshots (regenerated per session, large)
 assets/store/screenshots/*.png
 !assets/store/screenshots/.gitkeep
+
+# Founder tooling (not for public repo — contains personal phone + tester emails)
+notify*.py
+send_steve*.py
+poll_twilio*.py
+
+# Build artifacts (historical zips not needed in repo)
+dist/*.zip

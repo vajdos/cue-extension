@@ -1,133 +1,79 @@
-/**
- * Cue — First-run Onboarding
- *
- * Four-step intro shown on fresh install (service worker opens this page).
- * On finish, writes cueOnboarded=true + cueNudgePack=<selected> to
- * chrome.storage.local, which the content script reads on session start.
- *
- * Defaults to the 'gentle' pack rather than 'directive' — field testing
- * (2026-04-16) showed directive phrasing contributed to nudges feeling
- * erratic in real meetings.
- */
+// Cue — Onboarding consent screen (v1.1.32)
+//
+// Single-screen install-time consent. User clicks "Enable Cue" once.
+// This sets `cueOnboarded: true` in chrome.storage.local so future
+// service-worker installs don't re-open this tab.
+
 (function () {
   'use strict';
 
-  const TOTAL_STEPS = 4;
-  let currentStep = 1;
-  let selectedPack = 'gentle';
-  let selectedLocale = detectDefaultLocale();
+  const COURTESY_TEXT = 'I use a listening coach called Cue during my calls. It measures my conversation patterns on my device — no audio recorded or transcribed.';
 
-  function detectDefaultLocale() {
-    const supported = ['en-US', 'en-GB', 'es', 'de', 'fr', 'pt', 'it'];
-    const lang = (navigator.language || 'en-US').toLowerCase();
-    if (lang.startsWith('en-gb')) return 'en-GB';
-    if (lang.startsWith('en')) return 'en-US';
-    const prefix = lang.split('-')[0];
-    return supported.includes(prefix) ? prefix : 'en-US';
-  }
-
-  const dots = document.querySelectorAll('.step-indicator .dot');
-  const steps = document.querySelectorAll('.step');
-
-  function goTo(step) {
-    if (step < 1 || step > TOTAL_STEPS) return;
-    currentStep = step;
-    steps.forEach(el => el.classList.toggle('active', Number(el.dataset.step) === step));
-    dots.forEach(el => {
-      const n = Number(el.dataset.step);
-      el.classList.toggle('active', n === step);
-      el.classList.toggle('done', n < step);
-    });
-    window.scrollTo(0, 0);
-  }
-
-  // --- Step navigation ---
-  document.getElementById('btn-next-1').addEventListener('click', () => goTo(2));
-  document.getElementById('btn-next-2').addEventListener('click', () => goTo(3));
-  document.getElementById('btn-next-3').addEventListener('click', () => goTo(4));
-
-  document.querySelectorAll('[data-back]').forEach(btn => {
-    btn.addEventListener('click', () => goTo(currentStep - 1));
-  });
-
-  // --- Pack selection ---
-  const packEls = document.querySelectorAll('.pack');
-  function selectPack(pack) {
-    selectedPack = pack;
-    packEls.forEach(el => el.classList.toggle('selected', el.dataset.pack === pack));
-  }
-  packEls.forEach(el => {
-    el.addEventListener('click', () => selectPack(el.dataset.pack));
-  });
-  // Default to gentle (tested best in field 2026-04-16)
-  selectPack('gentle');
-
-  // Wire the inline "Teams desktop" setup link on step 2 — opens the
-  // guide in a new tab using the extension-local URL so it loads with
-  // the correct permissions and styling.
-  const teamsPwaLink = document.getElementById('onb-teams-pwa-link');
-  if (teamsPwaLink) {
-    teamsPwaLink.addEventListener('click', (e) => {
-      e.preventDefault();
-      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.tabs) {
-        chrome.tabs.create({ url: chrome.runtime.getURL('docs/teams-pwa-setup.html') });
-      } else {
-        window.open('docs/teams-pwa-setup.html', '_blank');
-      }
-    });
-  }
-
-  // Wire the "Verify privacy" link on step 4 — opens the built-in
-  // privacy verifier in a new tab so the user can confirm zero network
-  // calls without leaving onboarding.
-  const verifyLink = document.getElementById('onb-open-verify');
-  if (verifyLink) {
-    verifyLink.addEventListener('click', (e) => {
-      e.preventDefault();
-      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.tabs) {
-        chrome.tabs.create({ url: chrome.runtime.getURL('verify/verify.html') });
-      } else {
-        window.open('verify/verify.html', '_blank');
-      }
-    });
-  }
-
-  // Wire locale dropdown: default to detected browser language
-  const localeSel = document.getElementById('onb-locale');
-  if (localeSel) {
-    localeSel.value = selectedLocale;
-    localeSel.addEventListener('change', () => {
-      selectedLocale = localeSel.value;
-    });
-  }
-
-  // --- Finish ---
-  document.getElementById('btn-finish').addEventListener('click', () => {
-    const payload = {
-      cueOnboarded: true,
-      cueOnboardedAt: Date.now(),
-      cueNudgePack: selectedPack,
-      cueLocale: selectedLocale
-    };
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.set(payload, () => {
-        // Close the onboarding tab — user is ready to start a real call
-        if (chrome.tabs && typeof chrome.tabs.getCurrent === 'function') {
-          chrome.tabs.getCurrent(tab => {
-            if (tab && tab.id && chrome.tabs.remove) {
-              chrome.tabs.remove(tab.id);
-            } else {
-              window.close();
-            }
-          });
-        } else {
-          window.close();
+  // --- Courtesy script: click to copy ---
+  const courtesyEl = document.getElementById('copyCourtesy');
+  const copyHint   = document.getElementById('copyHint');
+  if (courtesyEl) {
+    courtesyEl.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(COURTESY_TEXT);
+        if (copyHint) {
+          const original = copyHint.textContent;
+          copyHint.textContent = '✓ Copied to clipboard';
+          setTimeout(() => { copyHint.textContent = original; }, 1800);
         }
-      });
-    } else {
-      // Standalone preview fallback (no chrome API) — just acknowledge
-      console.log('[Cue Onboarding] Would save:', payload);
-      alert('Onboarding complete. Selected pack: ' + selectedPack);
-    }
-  });
+      } catch (e) {
+        if (copyHint) copyHint.textContent = 'Copy failed — select the text manually';
+      }
+    });
+  }
+
+  // --- Technical details disclosure ---
+  const moreBtn = document.getElementById('moreBtn');
+  const details = document.getElementById('details');
+  if (moreBtn && details) {
+    moreBtn.addEventListener('click', () => {
+      const isOpen = details.classList.toggle('open');
+      moreBtn.textContent = isOpen ? 'Hide technical details ↑' : 'Show technical details ↓';
+    });
+  }
+
+  // --- Enable Cue: persist consent + close the tab ---
+  const enableBtn = document.getElementById('enableBtn');
+  if (enableBtn) {
+    enableBtn.addEventListener('click', async () => {
+      try {
+        await chrome.storage.local.set({
+          cueOnboarded: true,
+          cueConsentVersion: 1,
+          cueConsentAt: new Date().toISOString(),
+        });
+      } catch (e) {
+        console.warn('[Cue Onboarding] could not persist consent:', e);
+      }
+      // Open the side panel so the user lands directly in the product.
+      // sidePanel.open() requires user gesture; this click qualifies.
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab && chrome.sidePanel && chrome.sidePanel.open) {
+          await chrome.sidePanel.open({ tabId: tab.id });
+        }
+      } catch (e) { /* not all browsers expose sidePanel.open from extension page */ }
+      // Close the onboarding tab (best-effort).
+      try {
+        const [self] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (self && self.id) chrome.tabs.remove(self.id);
+      } catch (e) { /* user can close manually */ }
+    });
+  }
+
+  // --- "Maybe later" — close without persisting consent ---
+  const laterBtn = document.getElementById('laterBtn');
+  if (laterBtn) {
+    laterBtn.addEventListener('click', async () => {
+      try {
+        const [self] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (self && self.id) chrome.tabs.remove(self.id);
+      } catch (e) { /* user can close manually */ }
+    });
+  }
 })();

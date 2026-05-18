@@ -38,6 +38,12 @@ const CueIntegrationTape = (function () {
       // Find "The Moment You Missed"
       const missedMoment = CueEQScore.findMissedMoment(frames);
 
+      // v1.1.6 — Find the BEST moment for positive feedback. Every session ends
+      // on a recognition note before the "what to fix" callout.
+      const bestMoment = (typeof CueEQScore.findBestMoment === 'function')
+        ? CueEQScore.findBestMoment(frames)
+        : null;
+
       // Get micro-skill recommendation
       const microSkill = CueEQScore.getMicroSkill(eqScore, nudgeHistory);
 
@@ -71,6 +77,17 @@ const CueIntegrationTape = (function () {
         escalation: nudgeHistory.filter(n => n.type === 'escalation').length
       };
 
+      // v1.1.0 — pull source mode + replicant baseline so the tape can label
+      // "Your" vs "Their" vs "Conversation" and show the user's evolving replicant.
+      const sourceMode = session.source || 'mic';
+      let replicant = null;
+      try {
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+          const stored = await chrome.storage.local.get('cueReplicantBaseline');
+          if (stored.cueReplicantBaseline) replicant = stored.cueReplicantBaseline;
+        }
+      } catch (e) { /* fail silent — tape still renders without replicant block */ }
+
       const tape = {
         sessionId: session.id,
         date: new Date(session.startTime).toLocaleDateString('en-US', {
@@ -92,7 +109,29 @@ const CueIntegrationTape = (function () {
         nudgeBreakdown,
         nudgeHistory,
         comparison,
-        frameCount: frames.length
+        frameCount: frames.length,
+        bestMoment,  // v1.1.6 — positive recognition
+
+        // v1.1.0 mode-aware fields
+        source: sourceMode,                                                    // 'mic' | 'tab' | 'both'
+        sourceLabel: sourceMode === 'tab' ? 'Their'
+                  : sourceMode === 'both' ? 'Conversation'
+                  : 'Your',
+        sourceContext: sourceMode === 'tab'
+            ? 'Cue analyzed the remote party — this score reflects their speech patterns, not yours.'
+          : sourceMode === 'both'
+            ? 'Cue analyzed both streams. EQ score reflects your speech; interruption metrics reflect both.'
+            : null,                                                            // null = "Me" mode (default, no extra context needed)
+
+        // v1.1.0 replicant trend snapshot
+        replicant: replicant
+          ? {
+              sessionCount: replicant.sessionCount || 0,
+              isPopulationDefault: !!replicant.isPopulationDefault,
+              updatedAt: replicant.updatedAt || null,
+              convergenceProgress: Math.min(1, (replicant.sessionCount || 0) / 10),  // ~10 sessions to fully converge
+            }
+          : null,
       };
 
       console.log('[CueTape] Tape generated:', tape);

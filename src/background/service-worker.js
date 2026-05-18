@@ -177,6 +177,35 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create('cue-heartbeat', { periodInMinutes: 1 });
 });
 
+// v1.1.4 — Wispr-style global hotkey: Alt+Shift+C toggles a Cue session.
+// Three-key combo for collision-free invocation (Fitts's Law gives spacebar the
+// edge for speed, but spacebar conflicts with typing — modifier combo wins for
+// toggle semantics over a 30+min session). User can remap in chrome://extensions/shortcuts.
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command !== 'toggle-session') return;
+  console.log('[Cue] Hotkey toggle-session fired.');
+
+  // Make sure the side panel is open so the user can see what's happening
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    if (tab && tab.windowId !== undefined && chrome.sidePanel && chrome.sidePanel.open) {
+      await chrome.sidePanel.open({ windowId: tab.windowId });
+    }
+  } catch (e) {}
+
+  // Tell the side panel to start or stop based on its current state.
+  // The panel listens for this message and figures out whether to call start() or stop().
+  try {
+    chrome.runtime.sendMessage({
+      target: 'cue-ui',
+      type: 'hotkey-toggle-session',
+      timestamp: Date.now(),
+    }).catch(() => {});
+  } catch (e) {
+    console.warn('[Cue] Failed to dispatch hotkey toggle:', e);
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Context Menus — right-click access to Cue
 // ---------------------------------------------------------------------------

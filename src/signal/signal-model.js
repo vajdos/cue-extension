@@ -10,15 +10,37 @@
  * Uses exponential moving average for smooth, jitter-free output.
  */
 
+// v1.1.0 REPLICANT — population-default baseline for an "average speaker, middle of the road"
+// These values are chosen to land typical adult conversational speech in the middle 25-75 score band.
+// Sources: Pellegrino et al. 2011 (cross-language speech rates) and Banse & Scherer 1996
+// (acoustic profiles of vocal emotion). On first session, Cue uses these so the user gets
+// real-time scoring with zero calibration delay. Each completed session blends back into the
+// stored replicant baseline at 20% weight, so over ~10 sessions the replicant fully converges
+// onto the user's personal norms.
+const CUE_REPLICANT_POPULATION_DEFAULT = {
+  rms:              { min: 0.005, max: 0.080, range: 0.075 },   // typical conversational loudness
+  zcr:              { min: 800,   max: 2200,  range: 1400  },   // typical articulation rate
+  spectralCentroid: { min: 800,   max: 2400,  range: 1600  },   // typical voiced spectrum
+  spectralFlatness: { min: 0.30,  max: 0.80,  range: 0.50  },   // typical HNR-proxy
+  isPopulationDefault: true,
+  sessionCount: 0,
+  updatedAt: 0,
+};
+
+// Storage key for the user's persistent replicant
+const CUE_REPLICANT_STORAGE_KEY = 'cueReplicantBaseline';
+
 class CueSignalModel {
   constructor() {
-    // Calibration state
-    this._isCalibrated = false;
-    this._speechTimeSec = 0;          // Accumulated speech time (not wall clock)
+    // v1.1.0 REPLICANT — start calibrated on the population default. The user gets
+    // real-time scoring from frame 1 of session 1 instead of staring at "Calibrating..."
+    // for 15 seconds. As the session progresses we still accumulate cal samples, and
+    // once enough have collected we BLEND those into the stored replicant.
+    this._isCalibrated = true;            // can score from frame 1
+    this._calibrationCompleted = false;   // session-specific blend/persist not fired yet
+    this._speechTimeSec = 0;
     this._lastFrameTime = null;
 
-    // Raw feature accumulators during calibration
-    // We collect all values and compute percentiles for robust ranges
     this._calSamples = {
       rms: [],
       zcr: [],
@@ -26,13 +48,12 @@ class CueSignalModel {
       spectralFlatness: []
     };
 
-    // Calibrated ranges (set after calibration completes)
-    this._baseline = {
-      rms: { min: 0, max: 1, range: 1 },
-      zcr: { min: 0, max: 1, range: 1 },
-      spectralCentroid: { min: 0, max: 1, range: 1 },
-      spectralFlatness: { min: 0, max: 1, range: 1 }
-    };
+    // Start with population defaults; if a stored replicant exists, async-load it
+    // and replace _baseline as soon as storage returns. Frames processed in the
+    // ~5-50 ms gap before storage resolves use the population defaults — close
+    // enough that scores will be sensible.
+    this._baseline = JSON.parse(JSON.stringify(CUE_REPLICANT_POPULATION_DEFAULT));
+    this._loadStoredReplicant();
 
     // Smoothed output scores
     this._scores = {
@@ -127,7 +148,10 @@ class CueSignalModel {
     if (features.isSpeech) {
       this._continuousSpeechSec += frameDuration;
 
-      if (!this._isCalibrated) {
+      // v1.1.0 REPLICANT — accumulate cal samples regardless of _isCalibrated
+      // (which is true from frame 1 so scoring works against the replicant baseline).
+      // The blend/persist runs once per session at the CALIBRATION_SPEECH_SEC mark.
+      if (!this._calibrationCompleted) {
         this._speechTimeSec += frameDuration;
 
         // Collect calibration samples
@@ -139,6 +163,7 @@ class CueSignalModel {
         // Check if calibration is complete
         if (this._speechTimeSec >= CUE_THRESHOLDS.CALIBRATION_SPEECH_SEC) {
           this._finishCalibration();
+          this._calibrationCompleted = true;  // v1.1.0 REPLICANT — only blend/persist once per session
         }
       }
     } else {
@@ -262,16 +287,23 @@ class CueSignalModel {
     console.log('[Cue Signal] Calibration complete. Computing baseline from',
       this._calSamples.rms.length, 'samples.');
 
+    // v1.1.0 REPLICANT — compute new baseline from this session's samples,
+    // then BLEND with the existing stored baseline so the replicant evolves
+    // over time. First session (still on population default) uses sessionWeight=1.0
+    // (full replace). Subsequent sessions use sessionWeight=0.20 (20% new, 80% history),
+    // so it takes ~10 sessions to fully converge on the user's personal norms.
+    const isPopDefault = !!this._baseline.isPopulationDefault;
+    const sessionWeight = isPopDefault ? 1.0 : 0.20;
+    const histWeight = 1.0 - sessionWeight;
+
     for (const key of Object.keys(this._calSamples)) {
       const samples = this._calSamples[key];
       if (samples.length < 10) {
-        console.warn(`[Cue Signal] Too few samples for ${key}, using defaults.`);
+        console.warn(`[Cue Signal] Too few samples for ${key} — keeping existing replicant value.`);
         continue;
       }
 
-      // Sort for percentile calculation
       samples.sort((a, b) => a - b);
-
       const p5Index = Math.floor(samples.length * 0.05);
       const p95Index = Math.floor(samples.length * 0.95);
 
@@ -279,7 +311,6 @@ class CueSignalModel {
       let max = samples[p95Index];
       let range = max - min;
 
-      // Apply minimum range floor
       if (range < CUE_THRESHOLDS.CALIBRATION_MIN_RANGE) {
         const center = (min + max) / 2;
         min = center - CUE_THRESHOLDS.CALIBRATION_MIN_RANGE / 2;
@@ -287,21 +318,70 @@ class CueSignalModel {
         range = CUE_THRESHOLDS.CALIBRATION_MIN_RANGE;
       }
 
-      // Expand range by 10% on each side for headroom
       const expansion = range * 0.1;
       min -= expansion;
       max += expansion;
       range = max - min;
 
-      this._baseline[key] = { min, max, range };
+      // BLEND the new session values with the existing replicant baseline
+      const prev = this._baseline[key] || { min, max, range };
+      this._baseline[key] = {
+        min:   prev.min   * histWeight + min   * sessionWeight,
+        max:   prev.max   * histWeight + max   * sessionWeight,
+        range: prev.range * histWeight + range * sessionWeight,
+      };
 
-      console.log(`[Cue Signal] Baseline ${key}: min=${min.toFixed(4)}, max=${max.toFixed(4)}, range=${range.toFixed(4)}`);
+      console.log(`[Cue Signal Replicant] ${key}: blended (${(sessionWeight*100)|0}% new) → min=${this._baseline[key].min.toFixed(4)}, max=${this._baseline[key].max.toFixed(4)}`);
     }
 
-    this._isCalibrated = true;
+    // Update replicant metadata, then persist to chrome.storage.local for next session
+    this._baseline.sessionCount = (this._baseline.sessionCount || 0) + 1;
+    this._baseline.isPopulationDefault = false;
+    this._baseline.updatedAt = Date.now();
+    this._persistReplicant();
 
-    // Free calibration sample memory
+    this._isCalibrated = true;
     this._calSamples = { rms: [], zcr: [], spectralCentroid: [], spectralFlatness: [] };
+  }
+
+  /**
+   * v1.1.0 — REPLICANT PERSISTENCE
+   * Load the user's adapted replicant baseline from chrome.storage.local.
+   * If absent, leave the population default in place. Async — frames processed
+   * before this resolves use the default; once loaded the replicant takes over.
+   */
+  async _loadStoredReplicant() {
+    if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) return;
+    try {
+      const result = await chrome.storage.local.get(CUE_REPLICANT_STORAGE_KEY);
+      const stored = result[CUE_REPLICANT_STORAGE_KEY];
+      if (stored && stored.rms && stored.zcr) {
+        this._baseline = stored;
+        console.log(
+          '[Cue Signal Replicant] Loaded persistent replicant. ' +
+          `sessionCount=${stored.sessionCount || 0}, populationDefault=${!!stored.isPopulationDefault}, ` +
+          `lastUpdated=${stored.updatedAt ? new Date(stored.updatedAt).toISOString() : 'never'}`
+        );
+      } else {
+        console.log('[Cue Signal Replicant] No stored replicant — using population default for first session.');
+      }
+    } catch (e) {
+      console.warn('[Cue Signal Replicant] load failed:', e);
+    }
+  }
+
+  /**
+   * v1.1.0 — REPLICANT PERSISTENCE
+   * Save the current baseline back to chrome.storage.local at session end.
+   */
+  _persistReplicant() {
+    if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) return;
+    try {
+      chrome.storage.local.set({ [CUE_REPLICANT_STORAGE_KEY]: this._baseline });
+      console.log(`[Cue Signal Replicant] Saved (session #${this._baseline.sessionCount}) — replicant evolves.`);
+    } catch (e) {
+      console.warn('[Cue Signal Replicant] persist failed:', e);
+    }
   }
 
   /**

@@ -27,12 +27,13 @@
       <div class="p-status-text" id="p-status-text">Click Start to begin listening</div>
     </section>
 
-    <!-- Main Signals (3 bars, large) -->
+    <!-- Main Signals (3 bars, large) — v1.1.2 with live human-readable hints -->
     <section class="p-signals">
       <div class="p-signal-row">
         <div class="p-signal-header">
           <span class="p-signal-label">Tension</span>
           <span class="p-signal-value" id="p-tension-value">—</span>
+          <span class="p-signal-hint" id="p-tension-hint" style="margin-left:auto;font-size:11px;color:rgba(29,29,31,0.45);font-style:italic;"></span>
         </div>
         <div class="p-bar-track">
           <div class="p-bar-fill p-bar-tension" id="p-tension-bar"></div>
@@ -42,6 +43,7 @@
         <div class="p-signal-header">
           <span class="p-signal-label">Pace</span>
           <span class="p-signal-value" id="p-pace-value">—</span>
+          <span class="p-signal-hint" id="p-pace-hint" style="margin-left:auto;font-size:11px;color:rgba(29,29,31,0.45);font-style:italic;"></span>
         </div>
         <div class="p-bar-track">
           <div class="p-bar-fill p-bar-pace" id="p-pace-bar"></div>
@@ -51,15 +53,41 @@
         <div class="p-signal-header">
           <span class="p-signal-label">Energy</span>
           <span class="p-signal-value" id="p-energy-value">—</span>
+          <span class="p-signal-hint" id="p-energy-hint" style="margin-left:auto;font-size:11px;color:rgba(29,29,31,0.45);font-style:italic;"></span>
         </div>
         <div class="p-bar-track">
           <div class="p-bar-fill p-bar-energy" id="p-energy-bar"></div>
         </div>
       </div>
+
+      <!-- v1.1.2 — PAUSE as a 4th primary signal. Per acoustic science (Stivers 2009 PNAS,
+           Heldner & Edlund 2010), pause behavior is the single strongest listening signal:
+           pause AFTER they speak demonstrates you're processing, not queuing your reply.
+           Score is INVERTED from the others: high = good (you're pausing well).
+           Color uses teal (Cue accent) — visually distinct from the regulation signals above. -->
+      <div class="p-signal-row">
+        <div class="p-signal-header">
+          <span class="p-signal-label" style="color:#248A3D;">Pause</span>
+          <span class="p-signal-value" id="p-pause-value" style="color:#248A3D;">—</span>
+          <span class="p-signal-hint" id="p-pause-hint" style="margin-left:auto;font-size:11px;color:rgba(36,138,61,0.6);font-style:italic;"></span>
+        </div>
+        <div class="p-bar-track">
+          <div class="p-bar-fill p-bar-pause" id="p-pause-bar" style="background:linear-gradient(90deg,#248A3D,#2DD4A0);"></div>
+        </div>
+      </div>
+
+      <!-- v1.1.10: Live "Cue Says" status line. CRITICAL: fixed height + always
+           visible to prevent sidebar reflow. Was causing "sidebar moves up/down"
+           distraction when display toggled or text length changed. Now occupies
+           constant 36px with empty placeholder when no observation is active. -->
+      <div class="p-cue-says" id="p-cue-says" style="margin-top:10px;padding:8px 12px;background:rgba(45,212,160,0.05);border-left:2px solid rgba(45,212,160,0.4);border-radius:4px;font-size:12px;font-style:italic;color:rgba(29,29,31,0.55);height:36px;display:flex;align-items:center;line-height:1.35;overflow:hidden;">
+        <span id="p-cue-says-text">&nbsp;</span>
+      </div>
     </section>
 
-    <!-- Conversation Profile picker -->
-    <section class="p-profile-picker">
+    <!-- v1.1.7 — Conversation Profile picker hidden by default (less on screen).
+         Auto-detected from calendar when available. Click "..." in footer to show advanced controls. -->
+    <section class="p-profile-picker" id="p-profile-section" style="display: none;">
       <span class="p-profile-label">Context</span>
       <select id="p-profile-select" class="p-profile-select">
         <option value="default">Default — balanced</option>
@@ -70,8 +98,8 @@
       </select>
     </section>
 
-    <!-- Source picker: Me / Them / Both (for real interruption detection) -->
-    <section class="p-source-picker">
+    <!-- v1.1.7 — Source picker hidden by default. Default = Me. Show via "..." toggle. -->
+    <section class="p-source-picker" id="p-source-section" style="display: none;">
       <span class="p-source-label">Listen to:</span>
       <button type="button" class="p-source-btn active" id="p-source-me" data-source="mic">Me</button>
       <button type="button" class="p-source-btn" id="p-source-them" data-source="tab">Them</button>
@@ -84,6 +112,12 @@
     <!-- Main Control -->
     <section class="p-control">
       <button class="p-btn p-btn-primary" id="p-start-btn">Start Listening</button>
+      <!-- v1.1.8: subtle hotkey hint — teaches the Wispr-style invocation pattern -->
+      <div class="p-hotkey-hint" id="p-hotkey-hint" style="margin-top:8px; font-size:11px; color:rgba(29,29,31,0.45); text-align:center; letter-spacing:0.5px;">
+        or press <kbd style="background:rgba(0,0,0,0.05);border:1px solid rgba(0,0,0,0.08);border-radius:4px;padding:1px 5px;font-family:Consolas,monospace;font-size:10px;">Ctrl</kbd> <kbd style="background:rgba(0,0,0,0.05);border:1px solid rgba(0,0,0,0.08);border-radius:4px;padding:1px 5px;font-family:Consolas,monospace;font-size:10px;">Space</kbd> from anywhere
+      </div>
+      <!-- v1.1.8: session counter pill — visible only on free tier, builds urgency -->
+      <div class="p-session-counter" id="p-session-counter" style="display:none; margin-top:10px; text-align:center; font-size:11px; color:#248A3D; font-weight:500;"></div>
     </section>
 
     <!-- Nudge Card (appears when nudge fires) -->
@@ -136,7 +170,10 @@
           <li>Priority support and early access to Both-on-Cue</li>
         </ul>
         <div class="p-pro-cta">
-          <a href="https://cue-pwa.vercel.app/pricing.html" target="_blank" class="p-pro-btn" id="p-pro-upgrade">Upgrade to Pro &mdash; $69/yr founding</a>
+          <!-- v1.1.10: pricing.html shows Wispr-aligned tiers ($15/mo, $144/yr, $69/yr founding).
+               Until Lemon Squeezy/Stripe is wired, the founder CTA on that page goes to a mailto:
+               that lets Nathan personally onboard the first 100 founders. Working flow today. -->
+          <a href="https://cue-pwa.vercel.app/pricing.html" target="_blank" class="p-pro-btn" id="p-pro-upgrade">Become a Founding Member &mdash; $69/yr</a>
         </div>
       </div>
     </section>
@@ -147,17 +184,38 @@
       <span class="p-pro-active-text">All features unlocked</span>
     </section>
 
-    <!-- Quick Actions -->
+    <!-- v1.1.16 — Apple Watch haptic CTA. Hidden once cueWatchOnboarded === true.
+         Tapping QR/link opens the iOS PWA setup page; once subscribed, every
+         Cue nudge taps the Watch via Web Push (RFC 8291 aes128gcm). -->
+    <section class="p-watch-cta" id="p-watch-cta" style="display:none;">
+      <div class="p-watch-text">
+        <span class="p-watch-title">Get nudges on your Apple Watch</span>
+        <span class="p-watch-sub">Open this link on your iPhone &mdash; takes 60 seconds.</span>
+      </div>
+      <div class="p-watch-actions">
+        <a href="https://cue-pwa.vercel.app/api/haptic-test" target="_blank"
+           class="p-watch-btn" id="p-watch-setup">Set up &rarr;</a>
+        <button class="p-watch-dismiss" id="p-watch-dismiss" type="button" aria-label="Dismiss">&times;</button>
+      </div>
+    </section>
+
+    <!-- v1.1.7 — Quick Actions: only "..." (advanced toggle) + Settings.
+         Other actions reachable via right-click on toolbar icon (chrome.contextMenus). -->
     <section class="p-actions">
+      <button class="p-action-btn" id="p-advanced-toggle" title="Show advanced controls (profile, source)">
+        <span style="font-size:18px; line-height:14px; letter-spacing:1px;">···</span>
+        <span>Advanced</span>
+      </button>
       <button class="p-action-btn" id="p-settings-btn">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         <span>Settings</span>
       </button>
-      <button class="p-action-btn" id="p-progress-btn">
+      <!-- v1.1.7: Progress + Verify hidden by default; reachable via right-click context menu OR Advanced toggle -->
+      <button class="p-action-btn" id="p-progress-btn" style="display: none;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
         <span>Progress</span>
       </button>
-      <button class="p-action-btn" id="p-verify-btn">
+      <button class="p-action-btn" id="p-verify-btn" style="display: none;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         <span>Verify</span>
       </button>

@@ -19,20 +19,41 @@
     <!-- Nudge Style -->
     <section class="card">
       <h2 class="section-title">Nudge Style</h2>
-      <p class="section-desc">Choose how Cue talks to you during calls.</p>
+      <p class="section-desc">Choose how Cue talks to you during calls. Five voices — pick the one that sounds like you.</p>
       <div class="radio-group" id="nudge-pack">
-        <label class="radio-card">
-          <input type="radio" name="nudgePack" value="directive">
-          <div class="radio-content">
-            <span class="radio-label">Directive</span>
-            <span class="radio-example">"SLOW DOWN" "PAUSE" "BREATHE"</span>
-          </div>
-        </label>
         <label class="radio-card">
           <input type="radio" name="nudgePack" value="gentle" checked>
           <div class="radio-content">
             <span class="radio-label">Gentle</span>
-            <span class="radio-example">"Slow it down" "Take a breath" "Let them finish"</span>
+            <span class="radio-example">"Slow it down" · "Take a breath" · "Give them space"</span>
+          </div>
+        </label>
+        <label class="radio-card">
+          <input type="radio" name="nudgePack" value="direct">
+          <div class="radio-content">
+            <span class="radio-label">Direct</span>
+            <span class="radio-example">"SLOW DOWN" · "BREATHE. PAUSE." · "LET THEM SPEAK"</span>
+          </div>
+        </label>
+        <label class="radio-card">
+          <input type="radio" name="nudgePack" value="warm">
+          <div class="radio-content">
+            <span class="radio-label">Warm</span>
+            <span class="radio-example">"Ease into it — you've got this" · "You're solid. One slow breath."</span>
+          </div>
+        </label>
+        <label class="radio-card">
+          <input type="radio" name="nudgePack" value="dry">
+          <div class="radio-content">
+            <span class="radio-label">Dry</span>
+            <span class="radio-example">"Pace high" · "Tension high" · "30s+ unbroken"</span>
+          </div>
+        </label>
+        <label class="radio-card">
+          <input type="radio" name="nudgePack" value="playful">
+          <div class="radio-content">
+            <span class="radio-label">Playful</span>
+            <span class="radio-example">"Take a beat" · "Easy now — exhale" · regional flavor selectable below</span>
           </div>
         </label>
         <label class="radio-card">
@@ -40,6 +61,42 @@
           <div class="radio-content">
             <span class="radio-label">Minimal</span>
             <span class="radio-example">Glow only — no text, just a color pulse</span>
+          </div>
+        </label>
+      </div>
+    </section>
+
+    <!-- v1.1.7: Playful pack flavor selector — only relevant when "Playful" is selected -->
+    <section class="card" id="tone-flavor-card" style="display: none;">
+      <h2 class="section-title">Playful Flavor</h2>
+      <p class="section-desc">Pick the regional voice for your Playful pack. Auto-detected from your calendar when available.</p>
+      <div class="radio-group">
+        <label class="radio-card">
+          <input type="radio" name="toneFlavor" value="neutral" checked>
+          <div class="radio-content">
+            <span class="radio-label">Neutral</span>
+            <span class="radio-example">"Take a beat" · "Easy now — exhale" · "Toss it back to them"</span>
+          </div>
+        </label>
+        <label class="radio-card">
+          <input type="radio" name="toneFlavor" value="yiddish">
+          <div class="radio-content">
+            <span class="radio-label">Yiddish-flavored</span>
+            <span class="radio-example">"Nu, slow down a touch" · "Bubbeleh, take a breath" · "Enough kibitzing"</span>
+          </div>
+        </label>
+        <label class="radio-card">
+          <input type="radio" name="toneFlavor" value="southern">
+          <div class="radio-content">
+            <span class="radio-label">Southern-warm</span>
+            <span class="radio-example">"Take it slow, hon" · "Easy does it now" · "Give 'em a turn"</span>
+          </div>
+        </label>
+        <label class="radio-card">
+          <input type="radio" name="toneFlavor" value="british_dry">
+          <div class="radio-content">
+            <span class="radio-label">British-dry</span>
+            <span class="radio-example">"Steady on" · "Bit tight, that" · "Their turn, perhaps"</span>
           </div>
         </label>
       </div>

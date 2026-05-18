@@ -35,6 +35,11 @@ class CueDecisionEngine {
     this._cooldownSec            = options.cooldownSec            || 5;
     this._gracePeriodSec         = options.gracePeriodSec         || 10;
     this._interruptionCooldownSec = options.interruptionCooldownSec || 8;
+    // v1.1.15 — interruption detection only makes sense when we have BOTH
+    // streams (mic + tab). In mic-only mode, micro-pauses from the solo
+    // speaker were falsely flagging as "interruptions". Gate by source.
+    // Allowed values: 'mic', 'tab', 'both'. Default 'mic' for safety.
+    this._source = options.source || 'mic';
 
     this._sessionStartTime = Date.now();
     this._lastDecisionTime = 0;
@@ -81,12 +86,19 @@ class CueDecisionEngine {
     }
 
     // Priority 1: INTERRUPTION → PAUSE
-    if (signal.interruptionCount > this._lastInterruptionCount) {
+    // v1.1.15 — only valid when we have a second speaker stream. In mic-only
+    // mode the user is talking to no one we can measure; their own micro-pauses
+    // were getting flagged. Skip entirely in mic-only mode.
+    if (this._source !== 'mic' &&
+        signal.interruptionCount > this._lastInterruptionCount) {
       this._lastInterruptionCount = signal.interruptionCount;
       // Only pause if we haven't pause'd recently (stricter cooldown)
       if (secSinceLast >= this._interruptionCooldownSec) {
         return this._emit('PAUSE', signal, { reason: 'interruption' });
       }
+    } else if (this._source === 'mic') {
+      // Keep counter aligned so a later mode-switch doesn't burst-fire.
+      this._lastInterruptionCount = signal.interruptionCount || 0;
     }
 
     // Priority 2: SPEAKING RATIO too high → PAUSE
@@ -150,6 +162,15 @@ class CueDecisionEngine {
 
     if (this._onDecision) this._onDecision(event);
     return decision;
+  }
+
+  /** Update audio source mode mid-session ('mic' | 'tab' | 'both'). */
+  setSource(source) {
+    if (source && source !== this._source) {
+      this._source = source;
+      // Clear stale counter so a mode-switch doesn't immediately fire.
+      this._lastInterruptionCount = 0;
+    }
   }
 
   reset() {
