@@ -237,3 +237,36 @@ After deep discussion of "what does science support" and "what's the moat":
 
 **11 → 8 open questions remaining.** The three resolved this round are not the Open Questions list per se — they're product/strategy decisions captured here. The Open Questions table updates separately:
 - New Open Question added: legal memo revisit trigger (revenue milestone OR first complaint)
+
+### 2026-05-18 — v1.1.32 shipped — counterparty capture + voice-print + consent screen
+Three major workstreams completed in one session:
+
+**Phase B — Code changes (v1.1.32):**
+- Ported `src/signal/voice-print.js` from desktop. 8-dim spectral fingerprint, 20s calibration, runtime z-score gating. Filters other speakers in the room so signal measurements track THE user, not ambient noise.
+- Counterparty acoustic capture defaults ON for Default / 1-on-1 / Sales / Presentation contexts; defaults to mic-only for Negotiation / Interview / Hard conversation.
+- Conversation Profile picker re-surfaced during active sessions, with new Interview and Hard-conversation profiles added.
+- Source picker re-surfaced (Me only / Both sides), with both-sides as default.
+- New install-time consent screen at `onboarding/onboarding.html` with disclosure language + click-to-copy courtesy script + technical-details disclosure.
+- Service worker first-install tab-open re-enabled (previously 404'ing).
+- Build: `dist/cue-1.1.32-store.zip`, 147,637 bytes, sha256 `6bef5031b4090a8e29ff24ae`.
+- Privacy claim re-verified at byte level: 0 external fetches in shipping bundle.
+
+**Phase C — Documentation:**
+- `SIGNAL_MODEL.md` (Phase 1.2) — the IP doc. 5 signals + voice-print + speaker-counter, science citations (Stivers, Liu, Pentland, Sacks, Heldner), threshold tables, calibration math, decision-engine state machine, nudge cooldown matrix, per-context profile overrides. ~440 lines.
+- `PRIVACY_THREAT_MODEL.md` (Phase 1.6) — privacy claim defense. Network egress audit (zero external fetches), local storage schema, voice-print disclosure (not biometric ID), counterparty-capture legal posture, audit grep template for future builds. ~280 lines.
+
+**Phase A — Public GitHub push staged (waiting on Nathan):**
+- Added MIT LICENSE
+- Cleaned master `manifest.json` — removed `identity` permission + `oauth2` block (parity with build manifest)
+- Deleted `src/calendar/` and `src/transcription/` from master too — they shouldn't be in the public repo
+- Added `notify*.py`, `send_steve*.py`, `poll_twilio*.py`, `dist/*.zip` to `.gitignore`
+- Phone number redacted from `TWILIO_SMS_STATE.md`
+- Single clean commit ready: `e7a3f84 v1.1.32: foundation audit + science-anchored signal model + GitHub-ready`
+- Remote configured: `https://github.com/vajdos/cue-extension.git`
+- Push fails until Nathan creates the empty public repo at github.com/new
+
+**Open follow-ups:**
+- Nathan to create empty public repo (~90 seconds), then `git push -u origin main`
+- Phase 1.3 ARCHITECTURE.md (next session)
+- v1.1.33 question-detection-as-measurement (deferred from this session as too large)
+- Nathan's 12-minute verifications (Chrome Web Store draft, Twilio status) still pending

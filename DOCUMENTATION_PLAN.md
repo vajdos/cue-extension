@@ -226,3 +226,12 @@ Downstream implications for Phase 1 docs:
 - `CHROME_WEB_STORE_REVIEW.md` (1.7): listing description re-pitches as "Cue lives on your computer" with the extension as the "browser-only companion."
 
 5 Open Questions still pending: #2 support email, #3 ToS template, #6 sync v2, #7 onboarding UX, #8 notify-scripts location, #9 browser distribution (the last one was deferred; counted as 5 actively-open).
+
+### 2026-05-18 — Phase 1.2 + 1.6 + GitHub-prep complete (single session)
+- `SIGNAL_MODEL.md` (1.2) ✅ — the IP doc. Captures the model as-of v1.1.32 ship. Question-detection deferred to v1.1.33.
+- `PRIVACY_THREAT_MODEL.md` (1.6) ✅ — privacy claim defense. Voice-print disclosed. Counterparty capture legal posture documented. Audit grep template captured.
+- v1.1.32 build shipped to production (cue-pwa.vercel.app/dist/cue-1.1.32-store.zip).
+- LICENSE (MIT) added.
+- Cue-extension repo cleaned + committed (`e7a3f84`), remote configured, ready for push as soon as Nathan creates the empty public repo on GitHub.
+
+Phase 1 progress: 1.1 ✅, 1.2 ✅, 1.6 ✅. Remaining: 1.3 (ARCHITECTURE.md), 1.4 (MODULE_GUIDE.md), 1.5 (BUILD_AND_RELEASE.md — gated on build script existing), 1.7 (CHROME_WEB_STORE_REVIEW.md), 1.8 (SUPPORT.md — gated on Open Q #2 + #3).
