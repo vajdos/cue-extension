@@ -320,11 +320,9 @@
       } catch (e) {}
 
       console.log('[Cue Panel] Session started.');
-      // v1.1.14 — Wispr-style audio confirmation on session start. Brief
-      // ascending two-note tone (G4 → C5, ~250ms total). Confirms Cue is
-      // listening WITHOUT requiring the user to look at the panel or wait
-      // for the OS notification. Mirrors Wispr Flow's startup chime.
-      playStartTone();
+      // v1.1.36 — Start tone removed. Nathan: "no ping or noise associated
+      // with any cues or nudges." Cue arrives silently.
+      // playStartTone(); // disabled
     } catch (err) {
       console.error('[Cue Panel] Start failed (unexpected):', err);
       setStatus('Start failed: ' + err.message, 'error');
@@ -579,7 +577,7 @@
             title: celebrate.title,
             message: celebrate.msg,
             priority: 1,
-            silent: false,
+            silent: true, // v1.1.36 — no audio on any notification
           }).catch(() => {});
         }
       } catch (e) { /* never block session save on celebration */ }
@@ -1557,7 +1555,7 @@
           message: text || '',
           contextMessage: 'Real-time conversation coaching',
           priority: 2,                  // max priority — Windows shows it prominently
-          silent: false,                // sound plays
+          silent: true,                 // v1.1.36 — no audio on any cue/nudge
           requireInteraction: true,     // stays visible until user dismisses
         }).catch(err => console.warn('[Cue] notification failed:', err));
       } else {
@@ -1701,35 +1699,17 @@
         message: text,
         priority: type === 'escalation' ? 2 : 1,
         requireInteraction: false,
-        silent: false,
+        silent: true, // v1.1.36 — no audio on any cue/nudge
       });
     } catch (e) {
       console.warn('[Cue Panel] Notification failed:', e);
     }
   }
 
-  // v1.1.14 — Confirmation tone synthesis. Web Audio so we don't ship an audio file.
-  // Two-note ascending chime (G4 → C5) ~250ms total when session starts.
+  // v1.1.36 — Start tone disabled. Nathan: "no ping or noise with any cue/nudge."
+  // Function kept as a no-op stub so any legacy call sites don't throw.
   function playStartTone() {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const now = ctx.currentTime;
-      const o1 = ctx.createOscillator(); const g1 = ctx.createGain();
-      o1.type = 'sine'; o1.frequency.value = 392;
-      g1.gain.setValueAtTime(0.0001, now);
-      g1.gain.exponentialRampToValueAtTime(0.18, now + 0.02);
-      g1.gain.exponentialRampToValueAtTime(0.0001, now + 0.13);
-      o1.connect(g1).connect(ctx.destination);
-      o1.start(now); o1.stop(now + 0.14);
-      const o2 = ctx.createOscillator(); const g2 = ctx.createGain();
-      o2.type = 'sine'; o2.frequency.value = 523;
-      g2.gain.setValueAtTime(0.0001, now + 0.10);
-      g2.gain.exponentialRampToValueAtTime(0.18, now + 0.12);
-      g2.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
-      o2.connect(g2).connect(ctx.destination);
-      o2.start(now + 0.10); o2.stop(now + 0.26);
-      setTimeout(() => { try { ctx.close(); } catch (e) {} }, 400);
-    } catch (e) { /* fail silent — non-blocking */ }
+    // intentionally silent
   }
 
   // =============================================================

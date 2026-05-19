@@ -354,7 +354,7 @@ async function showNudgeNotification(nudgeType, message) {
       message: message || 'Check your conversation pace',
       priority: nudgeType === 'escalation' ? 2 : 1,
       requireInteraction: false,
-      silent: false,
+      silent: true, // v1.1.36 — Nathan: "no ping or noise with any cue/nudge"
     });
   } catch (e) {
     console.log('[Cue] Notification failed:', e);
@@ -430,7 +430,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           message: cfg.body,
           priority: 2,
           requireInteraction: false,
-          silent: false,
+          silent: true, // v1.1.36 — no audio on any cue/nudge
         });
       } catch (e) {}
 

@@ -149,64 +149,68 @@ var CUE_THRESHOLDS = {
   // Backward compat: 'directive' kept as alias for 'direct'; 'minimal' kept.
   // Selection: cueSettings.nudgePack picks the pack name; cueSettings.toneFlavor
   // picks the sub-flavor for 'playful' (defaults to 'neutral').
+  // v1.1.36 — Nudge text trimmed to 1-2 words per Nathan’s feedback:
+  // "more-than-a-single-word cue is distracting." Playful sub-flavors also
+  // capped; the British-dry and Yiddish flavors kept their character in
+  // the shortest form that still carries meaning.
   NUDGE_PACKS: {
     gentle: {
-      pace: 'Slow it down',
-      tension: 'Take a breath',
-      long_speech: 'Give them space',
-      escalation: 'Take a breath'
+      pace: ‘Slow’,
+      tension: ‘Breathe’,
+      long_speech: ‘Listen’,
+      escalation: ‘Pause’
     },
     direct: {
-      pace: 'SLOW DOWN',
-      tension: 'BREATHE. PAUSE.',
-      long_speech: 'LET THEM SPEAK',
-      escalation: 'BREATHE. PAUSE.'
+      pace: ‘SLOW’,
+      tension: ‘BREATHE’,
+      long_speech: ‘LISTEN’,
+      escalation: ‘PAUSE’
     },
-    // Backward-compat alias — older saved settings used 'directive'
+    // Backward-compat alias — older saved settings used ‘directive’
     directive: {
-      pace: 'SLOW DOWN',
-      tension: 'BREATHE. PAUSE.',
-      long_speech: 'LET THEM SPEAK',
-      escalation: 'BREATHE. PAUSE.'
+      pace: ‘SLOW’,
+      tension: ‘BREATHE’,
+      long_speech: ‘LISTEN’,
+      escalation: ‘PAUSE’
     },
     warm: {
-      pace: 'Ease into it — you’ve got this',
-      tension: 'You’re solid. One slow breath.',
-      long_speech: 'Let them in — your voice will land',
-      escalation: 'Breathe. You’ve got the room.'
+      pace: ‘Ease off’,
+      tension: ‘Exhale’,
+      long_speech: ‘Open up’,
+      escalation: ‘Ground’
     },
     dry: {
-      pace: 'Pace high',
-      tension: 'Tension high',
-      long_speech: '30s+ unbroken',
-      escalation: 'Pace + tension high'
+      pace: ‘Pace↑’,
+      tension: ‘Tension↑’,
+      long_speech: ‘Long’,
+      escalation: ‘High’
     },
     playful: {
       // Sub-flavors — selected via cueSettings.toneFlavor.
-      // Pack consumers should look up: NUDGE_PACKS.playful[flavor || 'neutral']
+      // Pack consumers should look up: NUDGE_PACKS.playful[flavor || ‘neutral’]
       neutral: {
-        pace: 'Take a beat',
-        tension: 'Easy now — exhale',
-        long_speech: 'Toss it back to them',
-        escalation: 'Whoa — breathe'
+        pace: ‘Beat’,
+        tension: ‘Exhale’,
+        long_speech: ‘Toss back’,
+        escalation: ‘Breathe’
       },
       yiddish: {
-        pace: 'Nu, slow down a touch',
-        tension: 'Bubbeleh, take a breath',
-        long_speech: 'Enough kibitzing — let them in',
-        escalation: 'Oy — pause and breathe'
+        pace: ‘Nu, slow’,
+        tension: ‘Breathe’,
+        long_speech: ‘Let them’,
+        escalation: ‘Pause’
       },
       southern: {
-        pace: 'Take it slow, hon',
-        tension: 'Easy does it now',
-        long_speech: 'Give ’em a turn',
-        escalation: 'Whoa friend, breathe'
+        pace: ‘Slow, hon’,
+        tension: ‘Easy now’,
+        long_speech: ‘Their turn’,
+        escalation: ‘Breathe’
       },
       british_dry: {
-        pace: 'Steady on',
-        tension: 'Bit tight, that',
-        long_speech: 'Their turn, perhaps',
-        escalation: 'Right. Breathe.'
+        pace: ‘Steady’,
+        tension: ‘Tight’,
+        long_speech: ‘Their turn’,
+        escalation: ‘Breathe.’
       }
     },
     minimal: {
