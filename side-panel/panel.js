@@ -1343,11 +1343,20 @@
   function handleDecisionFromOffscreen(msg) {
     console.log('[Cue Panel] Decision:', msg.decision, msg.reason);
 
+    // v1.1.34 — Suppress ASK_QUESTION UI entirely (mirrors cue-desktop v1.0.4).
+    // Per Nathan's repeated feedback ("tell me what to say" is the worst
+    // anti-pattern), the decision-engine's directive ASK_QUESTION pill must
+    // not surface in the panel. The decision is still emitted for corpus
+    // pairing (signals_before/after telemetry) and the post-session
+    // integration tape, but no in-session directive fires.
+    if (msg.decision === 'ASK_QUESTION') {
+      return;
+    }
+
     // Show a decision pill (distinct from coaching bubble — bigger, top of panel)
     showDecisionPill(msg.decision, msg.reason);
 
     // Relay to service worker for cross-device haptic push
-    // PAUSE = 1 pulse, ASK_QUESTION = 2 pulses, CONTINUE = silent
     try {
       chrome.runtime.sendMessage({
         type: 'decisionFired',
@@ -1358,13 +1367,9 @@
       }).catch(() => {});
     } catch (e) {}
 
-    // v1.1.15 — Apple Watch haptic for high-priority decisions.
-    // PAUSE = "you're talking too much" → longSpeech haptic
-    // ASK_QUESTION = "probe the other side" → tension haptic (single strong tap)
+    // v1.1.15 — Apple Watch haptic for PAUSE only (ASK_QUESTION suppressed above)
     if (msg.decision === 'PAUSE') {
       try { fireWatchHaptic('long_speech'); } catch (e) {}
-    } else if (msg.decision === 'ASK_QUESTION') {
-      try { fireWatchHaptic('tension'); } catch (e) {}
     }
   }
 
@@ -1813,46 +1818,47 @@
     });
   }
 
-  // v1.1.16 — Apple Watch haptic CTA. Shows the small green banner above
-  // the action row until the user either clicks Set up (we mark onboarded
-  // and assume they finished on iPhone) or dismisses (mark dismissed for
-  // 30 days, then re-show — most users forget on first pass).
+  // v1.1.34 — Delegated handler for any external-URL CTA inside the panel.
+  // Mirrors cue-desktop v1.0.4 — converted "Become a Founding Member" from
+  // <a target="_blank"> (which is reliable in extension side-panels but
+  // breaks in Tauri WebView) to <button data-cue-external="..."> for
+  // cross-surface consistency. chrome.tabs.create works in both contexts.
+  function wireExternalCtaButtons() {
+    document.addEventListener('click', (ev) => {
+      const btn = ev.target && ev.target.closest('[data-cue-external]');
+      if (!btn) return;
+      const url = btn.getAttribute('data-cue-external');
+      if (!url) return;
+      ev.preventDefault();
+      try {
+        if (chrome && chrome.tabs && chrome.tabs.create) {
+          chrome.tabs.create({ url });
+        } else if (typeof window.open === 'function') {
+          window.open(url, '_blank');
+        }
+      } catch (e) {
+        console.warn('[Cue Panel] external CTA open failed:', e);
+      }
+    });
+  }
+
+  // v1.1.34 — Apple Watch haptic CTA HIDDEN.
+  // The CTA pointed at /api/haptic-test which is `.disabled` on the PWA;
+  // Apple Watch sync (full v2 design) is deferred until the iOS-native app
+  // ships. To re-enable: remove the early return and re-point p-watch-setup
+  // at the real iPhone-PWA onboarding URL.
   async function wireWatchCTA() {
-    try {
-      const cta = document.getElementById('p-watch-cta');
-      const setupBtn = document.getElementById('p-watch-setup');
-      const dismissBtn = document.getElementById('p-watch-dismiss');
-      if (!cta || !setupBtn || !dismissBtn) return;
-
-      const stored = await chrome.storage.local.get(['cueWatchOnboarded', 'cueWatchDismissedAt']);
-      if (stored.cueWatchOnboarded) return; // already done
-
-      const dismissedAt = stored.cueWatchDismissedAt || 0;
-      const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
-      if (dismissedAt && (Date.now() - dismissedAt) < THIRTY_DAYS) return;
-
-      cta.style.display = 'flex';
-
-      setupBtn.addEventListener('click', () => {
-        // The user has the link open on iPhone now. We optimistically mark
-        // onboarded — if they don't actually complete, the email will simply
-        // be missing and fireWatchHaptic() no-ops gracefully.
-        chrome.storage.local.set({ cueWatchOnboarded: true }).catch(() => {});
-      });
-      dismissBtn.addEventListener('click', () => {
-        cta.style.display = 'none';
-        chrome.storage.local.set({ cueWatchDismissedAt: Date.now() }).catch(() => {});
-      });
-    } catch (e) {
-      console.warn('[Cue Panel] Watch CTA wire failed:', e);
-    }
+    const cta = document.getElementById('p-watch-cta');
+    if (cta) cta.style.display = 'none';
+    return;
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => { init(); wireAdvancedToggle(); wireWatchCTA(); });
+    document.addEventListener('DOMContentLoaded', () => { init(); wireAdvancedToggle(); wireExternalCtaButtons(); wireWatchCTA(); });
   } else {
     init();
     wireAdvancedToggle();
+    wireExternalCtaButtons();
     wireWatchCTA();
   }
 

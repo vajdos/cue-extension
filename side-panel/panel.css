@@ -162,8 +162,25 @@ body {
   font-weight: 600;
   color: #1D1D1F;
   font-variant-numeric: tabular-nums;
-  min-width: 28px;
+  min-width: 36px;          /* v1.1.34 — was 28px; safely fits "100" with tabular-nums */
   text-align: right;
+  flex-shrink: 0;
+}
+
+/* v1.1.34 — Sidebar jitter fix (mirrored from cue-desktop v1.0.4).
+   The .p-signal-hint span updates every ~128ms with text whose length
+   varies from "measured" to "calm · you're receptive". Inside the flex
+   .p-signal-header that length swing caused horizontal reflow each frame.
+   Constraining the hint to fixed-min, nowrap, right-aligned, no-shrink
+   eliminates the reflow. */
+.p-signal-hint {
+  min-width: 180px;
+  max-width: 180px;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
 }
 
 .p-bar-track {

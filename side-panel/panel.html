@@ -172,8 +172,11 @@
         <div class="p-pro-cta">
           <!-- v1.1.10: pricing.html shows Wispr-aligned tiers ($15/mo, $144/yr, $69/yr founding).
                Until Lemon Squeezy/Stripe is wired, the founder CTA on that page goes to a mailto:
-               that lets Nathan personally onboard the first 100 founders. Working flow today. -->
-          <a href="https://cue-pwa.vercel.app/pricing.html" target="_blank" class="p-pro-btn" id="p-pro-upgrade">Become a Founding Member &mdash; $69/yr</a>
+               that lets Nathan personally onboard the first 100 founders. Working flow today.
+               v1.1.34 — converted to <button data-cue-external> for parity with desktop;
+               panel.js wires a single delegated click handler that opens via chrome.tabs.create. -->
+          <button type="button" class="p-pro-btn" id="p-pro-upgrade"
+                  data-cue-external="https://cue-pwa.vercel.app/pricing.html">Become a Founding Member &mdash; $69/yr</button>
         </div>
       </div>
     </section>
