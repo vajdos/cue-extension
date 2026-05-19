@@ -298,11 +298,15 @@
       sessionStartTime = Date.now();
       paceSum = 0; tensionSum = 0; frameCount = 0;
 
-      el.startBtn.textContent = 'Stop';
+      el.startBtn.textContent = 'Stop Listening';
       el.startBtn.classList.add('stop');
       el.startBtn.disabled = false;
       el.logo.classList.add('live');
       el.stats.style.display = 'block';
+
+      // v1.1.35 — Tier 1 mic meter visible while session is active.
+      const t1 = document.getElementById('p-mic-meter-tier1');
+      if (t1) t1.style.display = 'block';
 
       setStatus('Calibrating...', 'calibrating');
 
@@ -489,6 +493,10 @@
     el.startBtn.textContent = 'Start Listening';
     el.startBtn.classList.remove('stop');
     el.logo.classList.remove('live');
+
+    // v1.1.35 — hide Tier 1 mic meter when session ends.
+    const t1 = document.getElementById('p-mic-meter-tier1');
+    if (t1) t1.style.display = 'none';
 
     // Freeze the session clock on the final duration (don't reset to —)
     el.sessionClock.textContent = `${String(finalMin).padStart(2,'0')}:${String(finalSec).padStart(2,'0')}`;
@@ -768,7 +776,7 @@
       console.log('[Cue Panel] Signal received while inactive — auto-syncing UI to running session.');
       isActive = true;
       sessionStartTime = Date.now() - 5000; // approximate — we don't know actual start
-      el.startBtn.textContent = 'Stop';
+      el.startBtn.textContent = 'Stop Listening';
       el.startBtn.classList.add('stop');
       el.logo.classList.add('live');
       el.stats.style.display = 'block';
@@ -783,6 +791,29 @@
       paceSum += s.pace;
       tensionSum += s.tension;
     }
+
+    // v1.1.35 — Drive Tier 1 mic meter (mirrored from cue-desktop v1.0.5).
+    // Raw RMS in log scale so quiet speech still visibly fills the bar.
+    try {
+      const rms = (s.rms !== undefined) ? s.rms : 0;
+      const pct = Math.max(0, Math.min(100, Math.round(60 * Math.log10(1 + rms * 200))));
+      const t1Fill  = document.getElementById('p-mic-tier1-fill');
+      const t1Label = document.getElementById('p-mic-tier1-label');
+      const t1Pct   = document.getElementById('p-mic-tier1-pct');
+      if (t1Fill) {
+        t1Fill.style.width = pct + '%';
+        if (t1Pct) t1Pct.textContent = pct + '%';
+        if (t1Label) {
+          if (s.isSpeech) {
+            t1Label.textContent = 'Cue hears you';
+            t1Label.style.color = '#1D1D1F';
+          } else {
+            t1Label.textContent = 'Listening for your voice…';
+            t1Label.style.color = 'rgba(29,29,31,0.55)';
+          }
+        }
+      }
+    } catch (e) {}
 
     // v1.1.16 — POSITIVE pause recognition. The trust loop: when the user
     // holds a >= 6s silence AFTER having spoken for >= 5s continuously, fire
@@ -1044,6 +1075,38 @@
   let _userName = '';
   let _toneFlavor = 'neutral';   // v1.1.7 — for playful pack sub-flavors
 
+  // v1.1.35 — Per-signal hint-band state for sustained-gate dampening.
+  // Mirrors cue-desktop v1.0.5. A new band-label must hold steady for
+  // HINT_SUSTAIN_MS before it replaces the displayed label. Stops the
+  // per-frame text flicker near band edges.
+  const _hintState = { tension: null, pace: null, energy: null };
+  const HINT_SUSTAIN_MS = 3000;
+
+  function dampedHint(type, score) {
+    const want = bandLabel(score, type);
+    const now = Date.now();
+    let st = _hintState[type];
+    if (!st) {
+      st = { displayed: want, candidate: want, candidateSince: now };
+      _hintState[type] = st;
+      return st.displayed;
+    }
+    if (want === st.displayed) {
+      st.candidate = want;
+      st.candidateSince = now;
+      return st.displayed;
+    }
+    if (want !== st.candidate) {
+      st.candidate = want;
+      st.candidateSince = now;
+      return st.displayed;
+    }
+    if (now - st.candidateSince >= HINT_SUSTAIN_MS) {
+      st.displayed = st.candidate;
+    }
+    return st.displayed;
+  }
+
   function bandLabel(score, type) {
     // Returns ["calm" | "elevated" | "high" | etc., "low" | "measured" | "fast" | etc.]
     // Bands are calibrated against the user's replicant baseline (50 = your norm).
@@ -1133,9 +1196,10 @@
     energy = _displayedEnergy;
 
     // v1.1.2 — live human-readable hints next to each bar
-    if (el.tensionHint) el.tensionHint.textContent = bandLabel(tension, 'tension');
-    if (el.paceHint)    el.paceHint.textContent    = bandLabel(pace, 'pace');
-    if (el.energyHint)  el.energyHint.textContent  = bandLabel(energy, 'energy');
+    // v1.1.35 — Sustained-gated (3s) hints — mirrors cue-desktop v1.0.5.
+    if (el.tensionHint) el.tensionHint.textContent = dampedHint('tension', tension);
+    if (el.paceHint)    el.paceHint.textContent    = dampedHint('pace', pace);
+    if (el.energyHint)  el.energyHint.textContent  = dampedHint('energy', energy);
 
     // v1.1.2 — Compute Pause score. Higher = better. Based on:
     //   - Recent silence within last 4s (good)

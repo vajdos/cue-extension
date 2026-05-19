@@ -27,6 +27,20 @@
       <div class="p-status-text" id="p-status-text">Click Start to begin listening</div>
     </section>
 
+    <!-- v1.1.35 — TIER 1 MIC METER (mirrored from cue-desktop v1.0.5).
+         Always-visible during a session so the user instantly knows the mic
+         is captured and Cue is hearing them. Lights up when voice activity
+         passes the VAD threshold. Solves "how do I know it hears me?" -->
+    <section class="p-mic-meter-tier1" id="p-mic-meter-tier1" style="display:none;margin:8px 0 14px 0;padding:14px 16px;background:#FFFFFF;border:1px solid rgba(0,0,0,0.05);border-radius:12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <span id="p-mic-tier1-label" style="font-size:13px;font-weight:600;color:#1D1D1F;letter-spacing:-0.1px;">Waiting for your voice&hellip;</span>
+        <span id="p-mic-tier1-pct" style="font-size:11px;color:rgba(29,29,31,0.45);font-variant-numeric:tabular-nums;">--</span>
+      </div>
+      <div style="height:10px;background:rgba(29,29,31,0.06);border-radius:5px;overflow:hidden;">
+        <div id="p-mic-tier1-fill" style="height:100%;width:0%;background:linear-gradient(90deg,#2DD4A0,#20B084);transition:width 90ms linear;border-radius:5px;"></div>
+      </div>
+    </section>
+
     <!-- Main Signals (3 bars, large) — v1.1.2 with live human-readable hints -->
     <section class="p-signals">
       <div class="p-signal-row">
