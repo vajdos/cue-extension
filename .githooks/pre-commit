@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+# Cue extension — pre-commit hook
+#
+# Enforces the privacy property + parse correctness at commit time.
+# Spec reference: CUE_BUILD_SPEC.md Part 14 (Privacy Enforcement Patterns).
+#
+# Activation (one-time):
+#   git config core.hooksPath .githooks
+#
+# Bypass (do NOT use — every bypass is a potential ship-broken commit):
+#   git commit --no-verify
+
+set -e
+
+fail() {
+  echo ""
+  echo "[pre-commit] BLOCKED — $1" >&2
+  echo "" >&2
+  exit 1
+}
+
+# Resolve repo root regardless of where the hook is invoked from
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+# ---------------------------------------------------------------------------
+# 1. Smart-quote scan in source files.
+#    v1.1.36 shipped to the Web Store with U+2018/U+2019 in thresholds.js,
+#    which broke CUE_THRESHOLDS loading in Chrome. This guards against the
+#    same class of corruption recurring (editor autocorrect, paste from
+#    formatted source).
+# ---------------------------------------------------------------------------
+SMART_LEFT=$'\xe2\x80\x98'
+SMART_RIGHT=$'\xe2\x80\x99'
+SMART_FILES=$(git diff --cached --name-only --diff-filter=ACM \
+  -- 'src/*.js' 'side-panel/*.js' 'offscreen/*.js' 'tape/*.js' 'verify/*.js' 'onboarding/*.js' \
+     'src/**/*.js' 'side-panel/**/*.js' 'offscreen/**/*.js' 'tape/**/*.js' 'verify/**/*.js' 'onboarding/**/*.js' \
+  2>/dev/null || true)
+if [ -n "$SMART_FILES" ]; then
+  for f in $SMART_FILES; do
+    [ -f "$f" ] || continue
+    if LC_ALL=C grep -l -P "[\xe2][\x80][\x98\x99]" "$f" >/dev/null 2>&1; then
+      fail "smart quote (U+2018/U+2019) detected in staged file: $f — replace with ASCII apostrophe (')"
+    fi
+  done
+fi
+
+# ---------------------------------------------------------------------------
+# 2. JS syntax check (node --check) on every staged JS file under code dirs.
+#    Would have caught the v1.1.36 smart-quote ship-break.
+# ---------------------------------------------------------------------------
+STAGED_JS=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null \
+  | grep -E '^(src|side-panel|offscreen|tape|verify|onboarding)/.*\.js$' || true)
+if [ -n "$STAGED_JS" ]; then
+  for f in $STAGED_JS; do
+    [ -f "$f" ] || continue
+    if ! node --check "$f" >/dev/null 2>&1; then
+      ERR=$(node --check "$f" 2>&1 | head -5)
+      fail "SyntaxError in $f"$'\n'"$ERR"
+    fi
+  done
+fi
+
+# ---------------------------------------------------------------------------
+# 3. JSON validation (manifest.json + any other staged JSON).
+# ---------------------------------------------------------------------------
+STAGED_JSON=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null | grep -E '\.json$' || true)
+for f in $STAGED_JSON; do
+  [ -f "$f" ] || continue
+  node -e "JSON.parse(require('fs').readFileSync('$f','utf8'))" 2>/dev/null \
+    || fail "$f is not valid JSON"
+done
+
+# ---------------------------------------------------------------------------
+# 4. Privacy grep — forbidden audio-handling APIs.
+#    No MediaRecorder. No Blob carrying audio. No FileReader on audio.
+#    No sendBeacon (used to exfiltrate). The AudioWorklet must be the only
+#    place sample buffers exist; everything downstream sees feature vectors.
+# ---------------------------------------------------------------------------
+FORBIDDEN_RE='MediaRecorder|new[[:space:]]+Blob\([^)]*audio|new[[:space:]]+FileReader|navigator\.sendBeacon'
+SRC_DIRS="src side-panel offscreen tape verify onboarding"
+HITS=$(for d in $SRC_DIRS; do
+  [ -d "$d" ] || continue
+  grep -rEn "$FORBIDDEN_RE" "$d" 2>/dev/null \
+    | grep -v '//[[:space:]]*allowed-privacy-exception' \
+    || true
+done)
+if [ -n "$HITS" ]; then
+  echo "$HITS" >&2
+  fail "forbidden audio API detected. If genuinely needed, append the comment // allowed-privacy-exception with reason."
+fi
+
+# ---------------------------------------------------------------------------
+# 5. Network grep — fetch() to non-allowlisted hosts.
+#    Allowlist: cue-pwa.vercel.app, api.airtable.com, api.resend.com.
+#    Any fetch to a different host must be flagged.
+# ---------------------------------------------------------------------------
+ALLOW='cue-pwa\.vercel\.app|api\.airtable\.com|api\.resend\.com|localhost|127\.0\.0\.1'
+NEW_FETCH=$(for d in $SRC_DIRS; do
+  [ -d "$d" ] || continue
+  grep -rEn "fetch\(['\"]https?://" "$d" 2>/dev/null \
+    | grep -vE "$ALLOW" \
+    | grep -v '//[[:space:]]*allowed-privacy-exception' \
+    || true
+done)
+if [ -n "$NEW_FETCH" ]; then
+  echo "$NEW_FETCH" >&2
+  fail "fetch() to unknown host detected. Add to allowlist after audit, or annotate // allowed-privacy-exception."
+fi
+
+# ---------------------------------------------------------------------------
+# 6. Third-party HTML <script src=https://...> outside the allowlist.
+# ---------------------------------------------------------------------------
+STAGED_HTML=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null | grep -E '\.html$' || true)
+for f in $STAGED_HTML; do
+  [ -f "$f" ] || continue
+  if grep -EiHn 'src=["'"'"']https?://' "$f" 2>/dev/null \
+       | grep -vE "$ALLOW" >/dev/null 2>&1; then
+    grep -EiHn 'src=["'"'"']https?://' "$f" | grep -vE "$ALLOW" >&2 || true
+    fail "third-party script in $f. Self-host or remove."
+  fi
+done
+
+# ---------------------------------------------------------------------------
+# 7. Manifest hygiene — no identity / oauth2 in extension manifest.
+#    These permissions enable Google auth, which would require sending data
+#    off-device. The build manifest must never re-introduce them.
+# ---------------------------------------------------------------------------
+if [ -f manifest.json ]; then
+  if grep -E '"(identity|oauth2)"' manifest.json >/dev/null 2>&1; then
+    fail "manifest.json contains identity/oauth2 — not allowed in build manifest."
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# 8. Secrets guard — refuse to commit .env, *.pem, *.key, credentials.
+# ---------------------------------------------------------------------------
+SECRET_HIT=$(git diff --cached --name-only --diff-filter=A 2>/dev/null \
+  | grep -E '(^|/)(\.env(\.|$)|.*\.pem$|.*\.key$|.*credentials.*)' \
+  | grep -v '\.gitignore' \
+  || true)
+if [ -n "$SECRET_HIT" ]; then
+  echo "$SECRET_HIT" >&2
+  fail "refusing to commit secret-shaped file. Move to .gitignore'd location."
+fi
+
+echo "[pre-commit] OK"
