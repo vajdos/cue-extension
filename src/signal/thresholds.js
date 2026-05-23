@@ -71,6 +71,18 @@ var CUE_THRESHOLDS = {
   RATE_VAR_WINDOW_SEC: 20,      // rolling window for rate-variance measurement
   RATE_VAR_LOW_THRESHOLD: 0.15, // coefficient-of-variation floor (SD/mean)
 
+  // v1.1.37 — Envelope-based syllable rate (Greenberg 1999, "Speaking in
+  // shorthand: a syllable-centric perspective for understanding pronunciation
+  // variation"). The ZCR-based pace measure correlates with high-frequency
+  // content rather than syllable cadence; envelope peaks in the 4-8 Hz
+  // modulation band track actual syllabic articulation. ZCR is retained on
+  // the output as a legacy field; future Phase-1 work migrates pace scoring
+  // to syllableRate (units: syllables-per-second-of-speech).
+  SYLLABLE_RATE_WINDOW_SEC: 2.0,        // rolling envelope window for peak counting
+  SYLLABLE_RATE_MIN_SEPARATION_MS: 100, // 10 Hz max syllable rate (physiological ceiling)
+  SYLLABLE_RATE_MIN_PROMINENCE: 0.30,   // peak must exceed p50 + 0.3 * (p90 - p50)
+  SYLLABLE_RATE_MIN_SPEECH_SEC: 0.5,    // need this much speech in window before scoring
+
   // Laughter detection (Provine 2000 "Laughter: A Scientific Investigation";
   // Brooks 2024 "Talk" — Levity dimension of TALK framework).
   // Laughter is acoustically characterized by:

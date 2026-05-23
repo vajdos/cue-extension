@@ -141,6 +141,19 @@ class CueSignalModel {
     this._cumulativeUserSpeechSec = 0;
     this._cumulativeCounterpartySpeechSec = 0;
     this._turnDominanceFlag = 'balanced';  // 'balanced' | 'dominant' | 'absent'
+
+    // v1.1.37 (Phase 1 build spec) — Envelope-based syllable rate.
+    // Greenberg 1999 — syllabic envelope modulation peaks at 4-8 Hz. ZCR
+    // tracks high-frequency content, not articulation cadence; envelope
+    // peaks track real syllables. Buffer ingests features.subFrameRMS
+    // (8 samples per ~128ms = 62.5 Hz) and runs adaptive-threshold peak
+    // detection on every process() call. ZCR remains exposed on the
+    // output as `zcr` (legacy); new consumers should prefer `syllableRate`.
+    this._syllableEnvelopeBuffer = [];
+    this._syllableEnvelopeSpeechMask = [];
+    this._syllableEnvelopeBufferMaxLen = 0;  // lazy-init from threshold on first frame
+    this._syllablesPerSec = 0;
+    this._syllableRateConfidence = 0;
   }
 
   /**
@@ -325,6 +338,7 @@ class CueSignalModel {
     this._updateLaughterDetector(features, now);
     this._updateBackchannelDetector(features, now);
     this._updateTurnDominance(features, frameDuration, speakingRatio);
+    this._updateSyllableRate(features);
 
     return {
       tension: this._scores.tension,
@@ -363,6 +377,11 @@ class CueSignalModel {
       turnDominance: this._turnDominanceFlag,
       cumulativeUserSpeechSec: this._cumulativeUserSpeechSec,
       cumulativeCounterpartySpeechSec: this._cumulativeCounterpartySpeechSec,
+      // v1.1.37 — Envelope-based syllable rate (Greenberg 1999). Authoritative
+      // pace measure going forward. Units: syllables per second of detected
+      // speech (silence in window is excluded from the denominator).
+      syllableRate: this._syllablesPerSec,
+      syllableRateConfidence: this._syllableRateConfidence,
     };
   }
 
@@ -838,5 +857,110 @@ class CueSignalModel {
     } else {
       this._turnDominanceFlag = 'balanced';
     }
+  }
+
+  // ==========================================================================
+  // v1.1.37 (Phase 1) — Envelope-based syllable rate
+  //
+  // Reference: Greenberg 1999, "Speaking in shorthand: a syllable-centric
+  // perspective for understanding pronunciation variation." Speech Communication.
+  //
+  // The ZCR-based pace proxy (still on the output as `zcr`) correlates with
+  // high-frequency content rather than syllabic articulation. Envelope peaks
+  // in the 4-8 Hz modulation band track real syllables and are what the
+  // pace score should derive from. This detector populates the new
+  // `syllableRate` field. Score wiring (moving `pace` off ZCR) is a later
+  // Phase 1 step; this commit only exposes the new measurement.
+  //
+  // Cost: O(N log N) per call (sort for percentile threshold) where N is the
+  // envelope buffer length (~125 samples at 62.5 Hz × 2 s). Negligible.
+  // ==========================================================================
+
+  /**
+   * Envelope-based syllable rate detector.
+   *
+   * Algorithm (matches CUE_BUILD_SPEC.md Appendix B `detectSyllablesFromEnvelope`):
+   *   1. Append features.subFrameRMS (8 samples per ~128ms = 62.5 Hz) and
+   *      a parallel speech-mask entry into a rolling buffer.
+   *   2. Trim buffer to CUE_THRESHOLDS.SYLLABLE_RATE_WINDOW_SEC.
+   *   3. Adaptive threshold: p50 + MIN_PROMINENCE * (p90 - p50).
+   *   4. Find local maxima above threshold with min spacing of
+   *      SYLLABLE_RATE_MIN_SEPARATION_MS (peaks during silence excluded).
+   *   5. Divide peak count by speech-time-in-window (so silence doesn't
+   *      depress the rate).
+   *
+   * `syllableRateConfidence` ramps 0 → 1 as the in-window speech budget grows
+   * from MIN_SPEECH_SEC to 2 × MIN_SPEECH_SEC. Downstream consumers should
+   * gate any nudge on confidence > 0.5 until enough data has accumulated.
+   */
+  _updateSyllableRate(features) {
+    if (!features.subFrameRMS || !Array.isArray(features.subFrameRMS)) return;
+
+    if (this._syllableEnvelopeBufferMaxLen === 0) {
+      // 8 sub-frames per ~128ms ≈ 62.5 Hz envelope sample rate.
+      this._syllableEnvelopeBufferMaxLen = Math.max(
+        16,
+        Math.floor(CUE_THRESHOLDS.SYLLABLE_RATE_WINDOW_SEC * 62.5)
+      );
+    }
+
+    const isSpeech = !!features.isSpeech;
+    for (const v of features.subFrameRMS) {
+      this._syllableEnvelopeBuffer.push(v);
+      this._syllableEnvelopeSpeechMask.push(isSpeech);
+    }
+    while (this._syllableEnvelopeBuffer.length > this._syllableEnvelopeBufferMaxLen) {
+      this._syllableEnvelopeBuffer.shift();
+      this._syllableEnvelopeSpeechMask.shift();
+    }
+
+    // Need at least half the buffer before scoring at all.
+    if (this._syllableEnvelopeBuffer.length < this._syllableEnvelopeBufferMaxLen * 0.5) {
+      this._syllablesPerSec = 0;
+      this._syllableRateConfidence = 0;
+      return;
+    }
+
+    const env = this._syllableEnvelopeBuffer;
+    const mask = this._syllableEnvelopeSpeechMask;
+    const N = env.length;
+    const fs = 62.5;
+
+    let speechSamples = 0;
+    for (let i = 0; i < N; i++) if (mask[i]) speechSamples++;
+    const speechSec = speechSamples / fs;
+    if (speechSec < CUE_THRESHOLDS.SYLLABLE_RATE_MIN_SPEECH_SEC) {
+      this._syllablesPerSec = 0;
+      this._syllableRateConfidence = 0;
+      return;
+    }
+
+    // Adaptive threshold via percentile of the envelope window.
+    const sorted = env.slice().sort((a, b) => a - b);
+    const p50 = sorted[Math.floor(N * 0.5)];
+    const p90 = sorted[Math.floor(N * 0.9)];
+    const threshold = p50 + CUE_THRESHOLDS.SYLLABLE_RATE_MIN_PROMINENCE * (p90 - p50);
+
+    const minGap = Math.max(1, Math.floor(
+      (CUE_THRESHOLDS.SYLLABLE_RATE_MIN_SEPARATION_MS / 1000) * fs
+    ));
+
+    let peaks = 0;
+    let lastPeakIdx = -minGap - 1;
+    for (let i = 1; i < N - 1; i++) {
+      if (!mask[i]) continue;            // peaks during silence are not syllables
+      if (env[i] <= threshold) continue;
+      if (env[i] > env[i - 1] && env[i] >= env[i + 1]) {
+        if (i - lastPeakIdx >= minGap) {
+          peaks++;
+          lastPeakIdx = i;
+        }
+      }
+    }
+
+    this._syllablesPerSec = peaks / speechSec;
+    // Confidence ramps from 0 at MIN_SPEECH_SEC to 1 at 2 × MIN_SPEECH_SEC.
+    const ratio = speechSec / CUE_THRESHOLDS.SYLLABLE_RATE_MIN_SPEECH_SEC;
+    this._syllableRateConfidence = Math.max(0, Math.min(1, ratio - 1));
   }
 }
