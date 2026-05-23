@@ -149,68 +149,68 @@ var CUE_THRESHOLDS = {
   // Backward compat: 'directive' kept as alias for 'direct'; 'minimal' kept.
   // Selection: cueSettings.nudgePack picks the pack name; cueSettings.toneFlavor
   // picks the sub-flavor for 'playful' (defaults to 'neutral').
-  // v1.1.36 — Nudge text trimmed to 1-2 words per Nathan’s feedback:
+  // v1.1.36 — Nudge text trimmed to 1-2 words per Nathan's feedback:
   // "more-than-a-single-word cue is distracting." Playful sub-flavors also
   // capped; the British-dry and Yiddish flavors kept their character in
   // the shortest form that still carries meaning.
   NUDGE_PACKS: {
     gentle: {
-      pace: ‘Slow’,
-      tension: ‘Breathe’,
-      long_speech: ‘Listen’,
-      escalation: ‘Pause’
+      pace: 'Slow',
+      tension: 'Breathe',
+      long_speech: 'Listen',
+      escalation: 'Pause'
     },
     direct: {
-      pace: ‘SLOW’,
-      tension: ‘BREATHE’,
-      long_speech: ‘LISTEN’,
-      escalation: ‘PAUSE’
+      pace: 'SLOW',
+      tension: 'BREATHE',
+      long_speech: 'LISTEN',
+      escalation: 'PAUSE'
     },
-    // Backward-compat alias — older saved settings used ‘directive’
+    // Backward-compat alias — older saved settings used 'directive'
     directive: {
-      pace: ‘SLOW’,
-      tension: ‘BREATHE’,
-      long_speech: ‘LISTEN’,
-      escalation: ‘PAUSE’
+      pace: 'SLOW',
+      tension: 'BREATHE',
+      long_speech: 'LISTEN',
+      escalation: 'PAUSE'
     },
     warm: {
-      pace: ‘Ease off’,
-      tension: ‘Exhale’,
-      long_speech: ‘Open up’,
-      escalation: ‘Ground’
+      pace: 'Ease off',
+      tension: 'Exhale',
+      long_speech: 'Open up',
+      escalation: 'Ground'
     },
     dry: {
-      pace: ‘Pace↑’,
-      tension: ‘Tension↑’,
-      long_speech: ‘Long’,
-      escalation: ‘High’
+      pace: 'Pace↑',
+      tension: 'Tension↑',
+      long_speech: 'Long',
+      escalation: 'High'
     },
     playful: {
       // Sub-flavors — selected via cueSettings.toneFlavor.
-      // Pack consumers should look up: NUDGE_PACKS.playful[flavor || ‘neutral’]
+      // Pack consumers should look up: NUDGE_PACKS.playful[flavor || 'neutral']
       neutral: {
-        pace: ‘Beat’,
-        tension: ‘Exhale’,
-        long_speech: ‘Toss back’,
-        escalation: ‘Breathe’
+        pace: 'Beat',
+        tension: 'Exhale',
+        long_speech: 'Toss back',
+        escalation: 'Breathe'
       },
       yiddish: {
-        pace: ‘Nu, slow’,
-        tension: ‘Breathe’,
-        long_speech: ‘Let them’,
-        escalation: ‘Pause’
+        pace: 'Nu, slow',
+        tension: 'Breathe',
+        long_speech: 'Let them',
+        escalation: 'Pause'
       },
       southern: {
-        pace: ‘Slow, hon’,
-        tension: ‘Easy now’,
-        long_speech: ‘Their turn’,
-        escalation: ‘Breathe’
+        pace: 'Slow, hon',
+        tension: 'Easy now',
+        long_speech: 'Their turn',
+        escalation: 'Breathe'
       },
       british_dry: {
-        pace: ‘Steady’,
-        tension: ‘Tight’,
-        long_speech: ‘Their turn’,
-        escalation: ‘Breathe.’
+        pace: 'Steady',
+        tension: 'Tight',
+        long_speech: 'Their turn',
+        escalation: 'Breathe.'
       }
     },
     minimal: {
