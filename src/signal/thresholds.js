@@ -33,7 +33,24 @@ var CUE_THRESHOLDS = {
   GRACE_PERIOD_SEC: 6,          // was 10 — start helping faster, don't wait long
 
   // -- Calibration --
-  CALIBRATION_SPEECH_SEC: 5,    // Calibrate on first 5 seconds of active speech (was 15)
+  // v1.1.37 — Smarter calibration handling (CUE_BUILD_SPEC.md §11.3 + Part 13).
+  // Old behavior: lock in baseline after exactly 5 seconds of voiced speech,
+  // regardless of data quality. Problem: if the user's first 5 seconds were
+  // a quiet sentence with little variation, the percentile range collapsed
+  // and downstream scoring saturated. New behavior: 5s is the EARLY-EXIT
+  // floor; if the RMS percentile range looks too thin (< CALIBRATION_MIN_RANGE
+  // × CALIBRATION_RANGE_QUALITY_FACTOR), keep accumulating up to
+  // CALIBRATION_MAX_SPEECH_SEC. Adaptive VAD activation bypasses early-exit
+  // and waits for the full max — lower-threshold detection means noisier
+  // samples that benefit from more data.
+  CALIBRATION_SPEECH_SEC: 5,            // earliest-exit voiced-speech floor
+  CALIBRATION_MAX_SPEECH_SEC: 15,       // hard cap aligned with spec §11.3
+  // Factor of 1.0 = early-exit as soon as the natural RMS p95-p5 spans
+  // the MIN_RANGE floor (so _finishCalibration won't have to artificially
+  // widen it, which is the scoring-saturation failure mode this guards
+  // against). Raise the factor if real-world data shows users early-
+  // exiting with still-noisy baselines.
+  CALIBRATION_RANGE_QUALITY_FACTOR: 1.0,
   CALIBRATION_MIN_RANGE: 0.1,   // Minimum range floor to prevent wild swings
 
   // -- Signal Smoothing --

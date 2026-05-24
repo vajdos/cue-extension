@@ -231,10 +231,19 @@ class CueSignalModel {
         this._calSamples.spectralCentroid.push(features.spectralCentroid);
         this._calSamples.spectralFlatness.push(features.spectralFlatness);
 
-        // Check if calibration is complete
+        // v1.1.37 — Smarter calibration completion (CUE_BUILD_SPEC.md §11.3
+        // + Part 13). Lock in the baseline at CALIBRATION_SPEECH_SEC IF the
+        // collected RMS percentile range is wide enough to be informative;
+        // otherwise keep accumulating up to CALIBRATION_MAX_SPEECH_SEC.
+        // Adaptive VAD activation forces the longer window because the
+        // lower-threshold samples are inherently noisier.
         if (this._speechTimeSec >= CUE_THRESHOLDS.CALIBRATION_SPEECH_SEC) {
-          this._finishCalibration();
-          this._calibrationCompleted = true;  // v1.1.0 REPLICANT — only blend/persist once per session
+          const hitMax = this._speechTimeSec >= CUE_THRESHOLDS.CALIBRATION_MAX_SPEECH_SEC;
+          const allowEarlyExit = !this._adaptiveVadActive && this._calibrationRangeReady();
+          if (hitMax || allowEarlyExit) {
+            this._finishCalibration();
+            this._calibrationCompleted = true;  // v1.1.0 REPLICANT — only blend/persist once per session
+          }
         }
       }
     } else {
@@ -391,6 +400,27 @@ class CueSignalModel {
       h1h2: features.h1h2 || 0,
       cpp: features.cpp || 0,
     };
+  }
+
+  /**
+   * v1.1.37 — Data-quality gate for early-exit calibration.
+   *
+   * Returns true if the collected RMS samples already span a percentile
+   * range wide enough to be informative — meaning the user has spoken
+   * with enough natural variation that locking in now will not collapse
+   * the downstream score range. The check uses RMS as the canonical
+   * energy proxy; if RMS variance is sufficient, the other features
+   * (ZCR, spectral centroid/flatness) typically follow.
+   */
+  _calibrationRangeReady() {
+    const rms = this._calSamples.rms;
+    if (rms.length < 20) return false;
+    const sorted = rms.slice().sort((a, b) => a - b);
+    const p5 = sorted[Math.floor(sorted.length * 0.05)];
+    const p95 = sorted[Math.floor(sorted.length * 0.95)];
+    const minRange = CUE_THRESHOLDS.CALIBRATION_MIN_RANGE *
+                     CUE_THRESHOLDS.CALIBRATION_RANGE_QUALITY_FACTOR;
+    return (p95 - p5) >= minRange;
   }
 
   /**
