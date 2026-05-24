@@ -22,7 +22,11 @@ class CueAudioManager {
     this._workletNode = null;
     this._analyser = null;
     this._spectralInterval = null;
-    this._lastSpectralData = { spectralCentroid: 0, spectralFlatness: 0 };
+    // v1.1.37 — h1h2 + cpp added per CUE_BUILD_SPEC.md §6 voice-quality
+    // augmentation. Both require F0 from the worklet, cached in
+    // _lastWorkletF0 so the spectral-analysis interval can read it.
+    this._lastSpectralData = { spectralCentroid: 0, spectralFlatness: 0, h1h2: 0, cpp: 0 };
+    this._lastWorkletF0 = 0;
     this._isRunning = false;
   }
 
@@ -163,11 +167,21 @@ class CueAudioManager {
    * Combines worklet data (RMS, ZCR, VAD) with main-thread spectral data.
    */
   _handleWorkletMessage(workletData) {
+    // v1.1.37 — Cache the worklet's F0 so the next spectral-analysis tick
+    // can compute H1-H2 and CPP at the right harmonic / quefrency.
+    if (workletData && typeof workletData.f0 === 'number' &&
+        workletData.f0 > 0 && (workletData.f0Confidence || 0) >= 0.3) {
+      this._lastWorkletF0 = workletData.f0;
+    }
+
     // Merge worklet features with latest spectral analysis
     const combined = {
       ...workletData,
       spectralCentroid: this._lastSpectralData.spectralCentroid,
       spectralFlatness: this._lastSpectralData.spectralFlatness,
+      // v1.1.37 — Voice-quality augmentation (CUE_BUILD_SPEC.md §6)
+      h1h2: this._lastSpectralData.h1h2,
+      cpp: this._lastSpectralData.cpp,
       _audioTimestamp: performance.now() // stamp for latency tracking
     };
 
@@ -235,8 +249,146 @@ class CueAudioManager {
         spectralFlatness = geometricMean / arithmeticMean;
       }
 
-      this._lastSpectralData = { spectralCentroid, spectralFlatness };
+      // v1.1.37 — Voice-quality augmentation (CUE_BUILD_SPEC.md §6).
+      // H1-H2 (Hillenbrand & Houde 1996) and CPP (Hillenbrand 1994). Both
+      // are spectral measures that need F0 — read the cached worklet F0.
+      const f0 = this._lastWorkletF0;
+      let h1h2 = 0;
+      let cpp = 0;
+      if (f0 > 0) {
+        h1h2 = this._computeH1H2(magnitudes, f0, this._audioContext.sampleRate, this._analyser.fftSize);
+        cpp = this._computeCPP(magnitudes, this._audioContext.sampleRate, f0);
+      }
+
+      this._lastSpectralData = { spectralCentroid, spectralFlatness, h1h2, cpp };
 
     }, 128); // Every ~128ms, matching the worklet post rate
+  }
+
+  /**
+   * v1.1.37 — H1-H2 (amplitude difference between first two harmonics in dB).
+   *
+   * Hillenbrand & Houde 1996, "Acoustic Correlates of Breathy Vocal Quality",
+   * J Speech Hear Res. Standard measure of glottal closure pattern:
+   *   H1 - H2 > 0 dB → breathy phonation (incomplete closure)
+   *   H1 - H2 ≈ 0 dB → modal voice
+   *   H1 - H2 < 0 dB → pressed / tense voice (over-closure)
+   *
+   * Implementation: locate the bins nearest f0 and 2*f0, then scan ±2 bins
+   * to find the local magnitude peak (handles FFT bin jitter against the
+   * true harmonic frequency).
+   *
+   * Returns dB difference, or 0 if either harmonic is below the spectrum
+   * resolvability range.
+   */
+  _computeH1H2(magnitudes, f0Hz, sampleRate, fftSize) {
+    if (f0Hz <= 0) return 0;
+    const binWidth = sampleRate / fftSize; // Hz per FFT bin
+    const h1Bin = Math.round(f0Hz / binWidth);
+    const h2Bin = Math.round(2 * f0Hz / binWidth);
+    if (h2Bin >= magnitudes.length - 1 || h1Bin < 1) return 0;
+
+    const localMax = (centerBin) => {
+      const lo = Math.max(0, centerBin - 2);
+      const hi = Math.min(magnitudes.length - 1, centerBin + 2);
+      let m = 0;
+      for (let i = lo; i <= hi; i++) if (magnitudes[i] > m) m = magnitudes[i];
+      return m;
+    };
+
+    const h1 = localMax(h1Bin);
+    const h2 = localMax(h2Bin);
+    if (h1 <= 0 || h2 <= 0) return 0;
+
+    return 20 * (Math.log10(h1) - Math.log10(h2));
+  }
+
+  /**
+   * v1.1.37 — CPP (cepstral peak prominence) in dB.
+   *
+   * Hillenbrand 1994 JSHR; Heman-Ackah et al. 2002 J Voice. The clinical
+   * standard for voice-quality assessment; widely used in dysphonia
+   * screening. High CPP = clean harmonic structure; low CPP = noise-
+   * dominated or hoarse.
+   *
+   * Algorithm:
+   *   1. Convert magnitude spectrum to log-power.
+   *   2. Compute the cepstrum (DCT-II of log-power) at lags around the
+   *      expected F0 period. Only a narrow range around f0 → cheaper than
+   *      a full IFFT.
+   *   3. Find peak of cepstrum in that range.
+   *   4. Fit linear regression to the cepstrum across the range.
+   *   5. CPP = peak - regression-at-peak, in dB.
+   *
+   * Cost: O(range_width × N) ≈ 50 × 1024 = ~50k multiplies per call at 8 Hz.
+   * Negligible.
+   *
+   * NOTE on absolute scale: synthetic test signals reproduce the EXPECTED
+   * DIRECTIONALITY (harmonic > noise, breathy ≈ pressed > noise) but the
+   * absolute dB value depends on the DCT normalization and is not yet
+   * calibrated against the clinical-literature range of 15-25 dB for
+   * healthy adult speech (Heman-Ackah 2002). CPP_LOW_DB in thresholds.js
+   * is set to 10 per the literature; first real-recording sessions will
+   * tell us whether a scale-correction factor is needed before any nudge
+   * can be wired to this signal.
+   */
+  _computeCPP(magnitudes, sampleRate, f0Hint) {
+    if (f0Hint <= 0) return 0;
+    const N = magnitudes.length;
+    const eps = 1e-12;
+
+    // Log-power spectrum
+    const logPwr = new Float32Array(N);
+    for (let i = 0; i < N; i++) {
+      const m = magnitudes[i];
+      logPwr[i] = Math.log10(m * m + eps);
+    }
+
+    // Quefrency / lag corresponding to F0 (in cepstrum index units, where
+    // index m maps to a periodicity of sampleRate / m Hz across the full
+    // FFT half-spectrum we operate on).
+    const f0LagCenter = Math.round(sampleRate / f0Hint);
+    const searchLow = Math.max(2, Math.round(f0LagCenter * 0.7));
+    const searchHigh = Math.min(N - 1, Math.round(f0LagCenter * 1.4));
+    if (searchHigh - searchLow < 3) return 0;
+
+    const range = searchHigh - searchLow + 1;
+    const cepstrum = new Float32Array(range);
+
+    // Partial DCT-II at each lag in the search range. Real-valued because
+    // the log-power spectrum is symmetric in the implicit even extension.
+    for (let mi = 0; mi < range; mi++) {
+      const m = searchLow + mi;
+      let sum = 0;
+      const coeff = Math.PI * m / N;
+      for (let k = 0; k < N; k++) {
+        sum += logPwr[k] * Math.cos(coeff * (k + 0.5));
+      }
+      cepstrum[mi] = sum / N;
+    }
+
+    // Find peak
+    let peakIdx = 0;
+    let peakVal = cepstrum[0];
+    for (let i = 1; i < range; i++) {
+      if (cepstrum[i] > peakVal) { peakVal = cepstrum[i]; peakIdx = i; }
+    }
+
+    // Linear regression to compute baseline at the peak position
+    let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+    for (let i = 0; i < range; i++) {
+      sumX += i;
+      sumY += cepstrum[i];
+      sumXY += i * cepstrum[i];
+      sumX2 += i * i;
+    }
+    const denom = range * sumX2 - sumX * sumX;
+    if (denom === 0) return 0;
+    const slope = (range * sumXY - sumX * sumY) / denom;
+    const intercept = (sumY - slope * sumX) / range;
+    const baselineAtPeak = slope * peakIdx + intercept;
+
+    // peakVal is in log10(power); 10 × difference gives dB.
+    return 10 * (peakVal - baselineAtPeak);
   }
 }

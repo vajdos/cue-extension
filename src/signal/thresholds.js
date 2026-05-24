@@ -83,6 +83,27 @@ var CUE_THRESHOLDS = {
   SYLLABLE_RATE_MIN_PROMINENCE: 0.30,   // peak must exceed p50 + 0.3 * (p90 - p50)
   SYLLABLE_RATE_MIN_SPEECH_SEC: 0.5,    // need this much speech in window before scoring
 
+  // v1.1.37 — Voice-quality augmentation (CUE_BUILD_SPEC.md §6 audit). The
+  // existing tension measure derives from spectralCentroid + (inverted)
+  // spectralFlatness — solid for detection but coarse for diagnosis. H1-H2
+  // and CPP add directly-interpretable voice-quality signals from the
+  // clinical literature.
+  //
+  // H1-H2 (Hillenbrand & Houde 1996 JSHR; Klatt & Klatt 1990 JASA):
+  // amplitude difference between first two harmonics in dB. H1 > H2
+  // (positive) = breathy phonation; H1 < H2 (negative) = pressed/tense
+  // phonation. Computed only when F0 is voiced (worklet-side autocorrelation
+  // confidence ≥ 0.3).
+  H1H2_PRESSED_DB: -3,                  // observation threshold for "pressed" voice — no nudge wired yet
+  H1H2_BREATHY_DB: 6,                   // observation threshold for "breathy" voice — no nudge wired yet
+  //
+  // CPP (Hillenbrand 1994 JSHR; Heman-Ackah et al. 2002 J Voice): cepstral
+  // peak prominence in dB. The clinical standard for voice-quality
+  // assessment; lower CPP correlates with dysphonia and vocal effort/strain.
+  // Population norm for healthy adult speech: ~15-25 dB. < 10 dB is widely
+  // used as a clinical concern threshold.
+  CPP_LOW_DB: 10,                       // observation threshold — no nudge wired yet
+
   // Laughter detection (Provine 2000 "Laughter: A Scientific Investigation";
   // Brooks 2024 "Talk" — Levity dimension of TALK framework).
   // Laughter is acoustically characterized by:

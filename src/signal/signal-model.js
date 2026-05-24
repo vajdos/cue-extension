@@ -382,6 +382,14 @@ class CueSignalModel {
       // speech (silence in window is excluded from the denominator).
       syllableRate: this._syllablesPerSec,
       syllableRateConfidence: this._syllableRateConfidence,
+      // v1.1.37 — Voice-quality augmentation (CUE_BUILD_SPEC.md §6).
+      // H1-H2 (dB): glottal-closure pattern. Positive = breathy, negative
+      //   = pressed/tense. Only meaningful when F0 is voiced.
+      // CPP (dB): cepstral peak prominence. Clinical voice-quality measure.
+      //   Healthy adult speech typically 15-25 dB; < 10 dB indicates
+      //   vocal effort / dysphonia.
+      h1h2: features.h1h2 || 0,
+      cpp: features.cpp || 0,
     };
   }
 
