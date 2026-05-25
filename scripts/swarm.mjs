@@ -151,11 +151,14 @@ function agentPrivacyGrep() {
 
   const findings = [];
   const JS_HTML = (p) => /\.(js|mjs|html|jsx)$/.test(p);
+  // Exclude the swarm's own source from its own scan — swarm.mjs literally
+  // contains the names of the forbidden patterns as regex strings.
+  const SKIP_SELF = (p) => /[\\/]scripts[\\/]swarm(\.mjs|-run\.ps1)$/.test(p) || /[\\/]scripts[\\/]_swarm-state[\\/]/.test(p);
   const roots = [MVP, PWA];
   let scanned = 0;
   for (const root of roots) {
     if (!fs.existsSync(root)) continue;
-    const files = walkFiles(root, JS_HTML);
+    const files = walkFiles(root, JS_HTML).filter((p) => !SKIP_SELF(p));
     scanned += files.length;
     for (const f of files) {
       const src = readSafe(f);
