@@ -204,8 +204,48 @@
       el.statNudges.textContent = '0';
       el.statAvgPace.textContent = '—';
       el.statAvgTension.textContent = '—';
-      setStatus('Starting mic (offscreen)...', 'calibrating');
+
+      // v1.1.39 — Pre-flight mic permission from the side-panel context.
+      //
+      // The side panel is a user-visible context where Chrome will show
+      // the standard "Allow microphone?" prompt on a user-gesture-driven
+      // getUserMedia call. The offscreen document, by contrast, is
+      // invisible — Chrome silently denies its getUserMedia calls until
+      // permission has been granted in a visible context first.
+      //
+      // We call getUserMedia here just to obtain the permission grant,
+      // then immediately stop the stream (MediaStreams cannot be
+      // transferred to the offscreen doc anyway). After this succeeds,
+      // the offscreen doc's getUserMedia call inherits the permission.
+      //
+      // First Start click on a fresh install: user sees the standard
+      // prompt and clicks Allow.
+      // Subsequent clicks: pre-flight succeeds silently, no prompt.
+      // User clicked Deny earlier: pre-flight rejects → showMicFixHelp().
+      setStatus('Requesting microphone access...', 'calibrating');
       el.startBtn.disabled = true;
+      try {
+        const preStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Done — drop the stream; the offscreen doc re-acquires it.
+        preStream.getTracks().forEach((t) => { try { t.stop(); } catch (e) {} });
+      } catch (e) {
+        console.warn('[Cue Panel] Mic pre-flight rejected:', e.name, e.message);
+        if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+          showMicFixHelp();
+        } else if (e.name === 'NotFoundError' || e.name === 'OverconstrainedError') {
+          setStatus('No microphone detected. Check Windows Sound settings → Input.', 'error');
+        } else if (e.name === 'NotReadableError') {
+          setStatus('Mic is in use by another app. Close Zoom/Teams/other mic apps.', 'error');
+        } else {
+          setStatus('Mic check failed — ' + e.name + ': ' + (e.message || '').slice(0, 60), 'error');
+        }
+        el.startBtn.textContent = 'Start Listening';
+        el.startBtn.classList.remove('stop');
+        el.startBtn.disabled = false;
+        return;
+      }
+
+      setStatus('Starting mic (offscreen)...', 'calibrating');
 
       // Load settings first (we're already past the click, gesture doesn't matter
       // since we delegate getUserMedia to the offscreen document).

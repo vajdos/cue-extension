@@ -2,6 +2,16 @@
 
 The Chrome extension. Material changes only. Format: declarative, file-cited where it helps. No marketing.
 
+## v1.1.39 — 2026-05-26 — Mic-permission pre-flight from the side panel
+
+**The Chrome MV3 offscreen-doc gotcha:** offscreen documents are invisible and Chrome refuses to show a permission prompt to an invisible context. The first time a user clicked Start in a fresh install, the offscreen doc's `getUserMedia` silently rejected with `NotAllowedError`. The user saw "Mic access is denied" with no way to grant it from inside Chrome's normal prompt flow.
+
+**Fix.** Before the side panel asks the service worker to spin up the offscreen doc, it now calls `navigator.mediaDevices.getUserMedia({ audio: true })` directly. The side panel is a user-visible context where Chrome WILL show the standard "Allow microphone?" prompt. The returned stream is immediately stopped (MediaStreams can't be transferred between contexts), but the permission grant persists for the extension origin. The offscreen doc's subsequent `getUserMedia` call inherits the grant and runs silently. ([side-panel/panel.js:197+](https://github.com/Vajdos/cue-extension/commit/HEAD))
+
+**UX:**
+- Fresh install, first Start: user sees Chrome's standard mic prompt. Clicks Allow → session starts. Clicks Block → `showMicFixHelp()` surfaces a deep link to `chrome://settings/content/microphone`.
+- Subsequent sessions: pre-flight resolves silently because permission was already granted. No prompt.
+
 ## v1.1.38 — 2026-05-26 — Phase-1 DSP wired into live scoring
 
 **Pace scoring.** Was ZCR alone. Now blends envelope-based syllable rate (Greenberg 1999 — the science-correct measure) with ZCR via `syllableRateConfidence`. When the in-window speech budget is full, syllable rate dominates; when confidence is low (silence, early-session), ZCR carries. ([a27305a](https://github.com/Vajdos/cue-extension/commit/a27305a))
