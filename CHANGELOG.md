@@ -2,6 +2,16 @@
 
 The Chrome extension. Material changes only. Format: declarative, file-cited where it helps. No marketing.
 
+## v1.1.38 — 2026-05-26 — Phase-1 DSP wired into live scoring
+
+**Pace scoring.** Was ZCR alone. Now blends envelope-based syllable rate (Greenberg 1999 — the science-correct measure) with ZCR via `syllableRateConfidence`. When the in-window speech budget is full, syllable rate dominates; when confidence is low (silence, early-session), ZCR carries. ([a27305a](https://github.com/Vajdos/cue-extension/commit/a27305a))
+
+**Tension scoring.** Was `centroid × 0.7 + flatnessInv × 0.3`. Now augmented with two voice-quality measures (Hillenbrand 1994/96): H1-H2 inverted (low H1-H2 = pressed phonation = tension) at 0.20 weight, and CPP inverted (low CPP = dysphonic / breathy = tension) at 0.20 weight. Centroid drops to 0.50, flatness-inv to 0.10. Sum × 100.
+
+**Replicant calibration.** Extended to track the three new fields per user. Population defaults: `syllableRate { min: 2.5, max: 6.5 } /s`, `h1h2 { min: -5, max: 15 } dB`, `cpp { min: 8, max: 25 } dB`. These blend toward the user's measured ranges over the standard ~10-session replicant convergence.
+
+**Backward compat.** Each feature is type-guarded individually. If the upstream worklet/audio-manager doesn't emit a field, the v1.1.37 scoring path runs unchanged. Older stored replicants without the new baseline keys also fall back gracefully — `_finishCalibration` accumulates the new fields starting next session.
+
 ## v1.1.37 — 2026-05-24 — Critical fix + foundation
 
 **Fix.** v1.1.36 shipped to the Chrome Web Store with 77 instances of U+2018/U+2019 (LEFT/RIGHT SINGLE QUOTATION MARK) inside the `NUDGE_PACKS` block in `src/signal/thresholds.js`. The file failed to parse in Chrome; `CUE_THRESHOLDS` was never defined; every downstream consumer (signal model, decision engine, nudge engine, side panel) silently disabled itself. Replacing the smart quotes with ASCII apostrophes restores the nudge pipeline. ([551d245](https://github.com/Vajdos/cue-extension/commit/551d245))
