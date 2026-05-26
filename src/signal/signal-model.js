@@ -19,9 +19,13 @@
 // onto the user's personal norms.
 const CUE_REPLICANT_POPULATION_DEFAULT = {
   rms:              { min: 0.005, max: 0.080, range: 0.075 },   // typical conversational loudness
-  zcr:              { min: 800,   max: 2200,  range: 1400  },   // typical articulation rate
+  zcr:              { min: 800,   max: 2200,  range: 1400  },   // typical articulation rate (legacy pace proxy)
   spectralCentroid: { min: 800,   max: 2400,  range: 1600  },   // typical voiced spectrum
   spectralFlatness: { min: 0.30,  max: 0.80,  range: 0.50  },   // typical HNR-proxy
+  // v1.1.38 — three Phase-1 DSP additions wired into scoring:
+  syllableRate:     { min: 2.5,   max: 6.5,   range: 4.0   },   // syllables/sec; Greenberg 1999 conversational range
+  h1h2:             { min: -5.0,  max: 15.0,  range: 20.0  },   // dB; low = pressed, high = breathy
+  cpp:              { min: 8.0,   max: 25.0,  range: 17.0  },   // dB; low = dysphonic/breathy, high = clear voicing
   isPopulationDefault: true,
   sessionCount: 0,
   updatedAt: 0,
@@ -45,7 +49,12 @@ class CueSignalModel {
       rms: [],
       zcr: [],
       spectralCentroid: [],
-      spectralFlatness: []
+      spectralFlatness: [],
+      // v1.1.38 — Phase 1 DSP signals added to calibration so the user's
+      // personal range supersedes the population default after one session.
+      syllableRate: [],
+      h1h2: [],
+      cpp: []
     };
 
     // Start with population defaults; if a stored replicant exists, async-load it
@@ -230,6 +239,14 @@ class CueSignalModel {
         this._calSamples.zcr.push(features.zcr);
         this._calSamples.spectralCentroid.push(features.spectralCentroid);
         this._calSamples.spectralFlatness.push(features.spectralFlatness);
+        // v1.1.38 — calibrate the Phase-1 DSP signals too when present.
+        // Guard each on type because older audio-manager builds may not
+        // include them (defensive on a per-frame basis is cheap).
+        if (typeof features.syllableRate === 'number' && features.syllableRate > 0) {
+          this._calSamples.syllableRate.push(features.syllableRate);
+        }
+        if (typeof features.h1h2 === 'number') this._calSamples.h1h2.push(features.h1h2);
+        if (typeof features.cpp === 'number')  this._calSamples.cpp.push(features.cpp);
 
         // v1.1.37 — Smarter calibration completion (CUE_BUILD_SPEC.md §11.3
         // + Part 13). Lock in the baseline at CALIBRATION_SPEECH_SEC IF the
@@ -485,7 +502,7 @@ class CueSignalModel {
     this._persistReplicant();
 
     this._isCalibrated = true;
-    this._calSamples = { rms: [], zcr: [], spectralCentroid: [], spectralFlatness: [] };
+    this._calSamples = { rms: [], zcr: [], spectralCentroid: [], spectralFlatness: [], syllableRate: [], h1h2: [], cpp: [] };
   }
 
   /**
@@ -555,12 +572,49 @@ class CueSignalModel {
     };
 
     const rawEnergy  = centeredUnclamped(features.rms, this._baseline.rms) * 100;
-    const rawPace    = centeredUnclamped(features.zcr, this._baseline.zcr) * 100;
+
+    // v1.1.38 — Pace scoring now blends envelope-based syllable rate
+    // (Greenberg 1999, the science-correct measure) with ZCR (legacy).
+    // Weight follows the per-frame syllableRateConfidence: when the
+    // window has plenty of voiced speech, syllableRate dominates; when
+    // confidence is low (silence, early in session), ZCR carries.
+    // Backward compat: if syllableRate isn't on the feature struct,
+    // fall back to ZCR-only.
+    const paceFromZcr = centeredUnclamped(features.zcr, this._baseline.zcr) * 100;
+    let rawPace;
+    if (typeof features.syllableRate === 'number' && this._baseline.syllableRate) {
+      const paceFromSyll = centeredUnclamped(features.syllableRate, this._baseline.syllableRate) * 100;
+      // syllableRateConfidence is a 0-1 ramp on the signal-model itself;
+      // when feature struct doesn't carry it, default to 0.5 for blending.
+      const conf = Math.max(0, Math.min(1, this._syllableRateConfidence || 0.5));
+      rawPace = paceFromSyll * conf + paceFromZcr * (1 - conf);
+    } else {
+      rawPace = paceFromZcr;
+    }
+
     const centroidScore = centeredUnclamped(features.spectralCentroid, this._baseline.spectralCentroid);
     const flatnessScore = 1 - centeredUnclamped(features.spectralFlatness, this._baseline.spectralFlatness);
-    // Weight centroid primary, flatness secondary. Note flatnessScore is already
-    // a 0-1 "tension" value (inverted flatness), so no extra *0.5 needed.
-    const rawTension = ((centroidScore * 0.7) + (flatnessScore * 0.3)) * 100;
+
+    // v1.1.38 — Tension scoring augmented by H1-H2 + CPP (Hillenbrand 1994/96,
+    // Hillenbrand & Houde 1996). H1-H2: low (pressed phonation) reads as
+    // tension; high (breathy) reads as relaxed. CPP: low (less harmonic
+    // structure) reads as tension/dysphonia; high (clear voicing) reads
+    // as relaxed. Both inverted so high score = high tension.
+    let rawTension;
+    if (typeof features.h1h2 === 'number' && typeof features.cpp === 'number'
+        && this._baseline.h1h2 && this._baseline.cpp) {
+      const h1h2Score = 1 - centeredUnclamped(features.h1h2, this._baseline.h1h2);
+      const cppScore  = 1 - centeredUnclamped(features.cpp,  this._baseline.cpp);
+      // Weights chosen so centroid + flatness stay primary (60%) and the
+      // new voice-quality signals add 40% of the score. Tuned for
+      // monotonic behavior on the synthetic fixtures; review against
+      // user data once corpus volume permits.
+      rawTension = (centroidScore * 0.50 + flatnessScore * 0.10
+                  + h1h2Score * 0.20 + cppScore * 0.20) * 100;
+    } else {
+      // Backward compat path — centroid + flatness only, same as pre-v1.1.38.
+      rawTension = ((centroidScore * 0.7) + (flatnessScore * 0.3)) * 100;
+    }
 
     // Apply exponential smoothing
     this._scores.energy = this._scores.energy + alpha * (rawEnergy - this._scores.energy);
