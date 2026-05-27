@@ -2,6 +2,12 @@
 
 The Chrome extension. Material changes only. Format: declarative, file-cited where it helps. No marketing.
 
+## v1.1.41 — 2026-05-27 — Two warnings demoted: intervention-log storage guard + calibration sample-count info
+
+**`[Log] Write failed: Cannot read properties of undefined (reading 'local')`** — the intervention-log module is loaded by several HTML surfaces (panel.html, offscreen.html) as a `<script>` tag. In some load orderings the chrome.* APIs aren't yet defined when the module's first `_write` fires, so the access to `chrome.storage.local` threw. Added an `_storageAvailable()` guard that silently no-ops both `_read` and `_write` when chrome.storage isn't available. ([src/storage/intervention-log.js:40+](https://github.com/Vajdos/cue-extension/commit/HEAD))
+
+**`[Cue Signal] Too few samples for syllableRate — keeping existing replicant value`** — this is the expected backward-compat path I added in v1.1.38. The slower-to-stabilize signals (syllableRate, h1h2, cpp) often don't accumulate 10 valid samples within the calibration window on early sessions. The replicant correctly falls back to the population default for those keys. Downgraded from `console.warn` to `console.log` so Chrome no longer surfaces it as an error on `chrome://extensions`. ([src/signal/signal-model.js:463](https://github.com/Vajdos/cue-extension/commit/HEAD))
+
 ## v1.1.40 — 2026-05-26 — Side panel becomes pure status surface; nudges always center-screen
 
 **The change.** The side panel had three coaching-text surfaces — the green-tinted "Cue Says" observation box and the small italic hint text next to each of the four signal bars (Tension / Pace / Energy / Pause). Per Nathan's feedback, those felt like nudges-in-the-sidebar instead of true center-screen overlays. All four hint elements + the Cue Says element are now `display:none` in `side-panel/panel.html`. The textContent updates in `panel.js` still write to those nodes (no JS change needed) but nothing is visible.

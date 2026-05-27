@@ -37,7 +37,24 @@ const CueInterventionLog = (function () {
   const MAX_ENTRIES = 500;
   const OUTCOME_WINDOW_SEC = 30;
 
+  // v1.1.41 — guard chrome.storage access. The intervention-log module is
+  // listed in web_accessible_resources and content_scripts, and can be
+  // loaded by HTML surfaces (panel.html, offscreen.html) at script-tag
+  // time. In some load orderings the chrome.* APIs aren't yet defined,
+  // producing a "Cannot read properties of undefined (reading 'local')"
+  // when _write is called before the extension context fully initializes.
+  // The guard makes the module silently no-op in that case; callers see
+  // an empty-array read and a swallowed write, which is the right
+  // behavior — there's no other useful place to persist.
+  function _storageAvailable() {
+    return typeof chrome !== 'undefined'
+      && chrome.storage
+      && chrome.storage.local
+      && typeof chrome.storage.local.get === 'function';
+  }
+
   async function _read() {
+    if (!_storageAvailable()) return [];
     try {
       const res = await chrome.storage.local.get([STORAGE_KEY]);
       return Array.isArray(res[STORAGE_KEY]) ? res[STORAGE_KEY] : [];
@@ -45,6 +62,7 @@ const CueInterventionLog = (function () {
   }
 
   async function _write(list) {
+    if (!_storageAvailable()) return;
     try {
       // Cap to prevent unbounded growth
       const trimmed = list.length > MAX_ENTRIES ? list.slice(-MAX_ENTRIES) : list;

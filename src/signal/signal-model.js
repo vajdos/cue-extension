@@ -460,7 +460,15 @@ class CueSignalModel {
     for (const key of Object.keys(this._calSamples)) {
       const samples = this._calSamples[key];
       if (samples.length < 10) {
-        console.warn(`[Cue Signal] Too few samples for ${key} — keeping existing replicant value.`);
+        // v1.1.41 — downgrade from console.warn to console.log. This is
+        // the expected behavior, not a malfunction: on the first session
+        // (and often the next few), the slower-to-stabilize signals
+        // (syllableRate, h1h2, cpp) don't accumulate 10 valid samples
+        // within the calibration window. The replicant correctly falls
+        // back to the population default for those keys. Showing it as
+        // a console.warn made it surface as an error on chrome://extensions
+        // when there was no actual error.
+        console.log(`[Cue Signal] ${key}: ${samples.length} samples (<10) — keeping replicant default for now.`);
         continue;
       }
 
