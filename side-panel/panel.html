@@ -47,7 +47,7 @@
         <div class="p-signal-header">
           <span class="p-signal-label">Tension</span>
           <span class="p-signal-value" id="p-tension-value">—</span>
-          <span class="p-signal-hint" id="p-tension-hint" style="margin-left:auto;font-size:11px;color:rgba(29,29,31,0.45);font-style:italic;"></span>
+          <span class="p-signal-hint" id="p-tension-hint" style="display:none;"></span>
         </div>
         <div class="p-bar-track">
           <div class="p-bar-fill p-bar-tension" id="p-tension-bar"></div>
@@ -57,7 +57,7 @@
         <div class="p-signal-header">
           <span class="p-signal-label">Pace</span>
           <span class="p-signal-value" id="p-pace-value">—</span>
-          <span class="p-signal-hint" id="p-pace-hint" style="margin-left:auto;font-size:11px;color:rgba(29,29,31,0.45);font-style:italic;"></span>
+          <span class="p-signal-hint" id="p-pace-hint" style="display:none;"></span>
         </div>
         <div class="p-bar-track">
           <div class="p-bar-fill p-bar-pace" id="p-pace-bar"></div>
@@ -67,7 +67,7 @@
         <div class="p-signal-header">
           <span class="p-signal-label">Energy</span>
           <span class="p-signal-value" id="p-energy-value">—</span>
-          <span class="p-signal-hint" id="p-energy-hint" style="margin-left:auto;font-size:11px;color:rgba(29,29,31,0.45);font-style:italic;"></span>
+          <span class="p-signal-hint" id="p-energy-hint" style="display:none;"></span>
         </div>
         <div class="p-bar-track">
           <div class="p-bar-fill p-bar-energy" id="p-energy-bar"></div>
@@ -83,19 +83,22 @@
         <div class="p-signal-header">
           <span class="p-signal-label" style="color:#248A3D;">Pause</span>
           <span class="p-signal-value" id="p-pause-value" style="color:#248A3D;">—</span>
-          <span class="p-signal-hint" id="p-pause-hint" style="margin-left:auto;font-size:11px;color:rgba(36,138,61,0.6);font-style:italic;"></span>
+          <span class="p-signal-hint" id="p-pause-hint" style="display:none;"></span>
         </div>
         <div class="p-bar-track">
           <div class="p-bar-fill p-bar-pause" id="p-pause-bar" style="background:linear-gradient(90deg,#248A3D,#2DD4A0);"></div>
         </div>
       </div>
 
-      <!-- v1.1.10: Live "Cue Says" status line. CRITICAL: fixed height + always
-           visible to prevent sidebar reflow. Was causing "sidebar moves up/down"
-           distraction when display toggled or text length changed. Now occupies
-           constant 36px with empty placeholder when no observation is active. -->
-      <div class="p-cue-says" id="p-cue-says" style="margin-top:10px;padding:8px 12px;background:rgba(45,212,160,0.05);border-left:2px solid rgba(45,212,160,0.4);border-radius:4px;font-size:12px;font-style:italic;color:rgba(29,29,31,0.55);height:36px;display:flex;align-items:center;line-height:1.35;overflow:hidden;">
-        <span id="p-cue-says-text">&nbsp;</span>
+      <!-- v1.1.40: "Cue Says" in-panel observation surface is HIDDEN.
+           Per Nathan's feedback: "I don't want the cues or nudges to appear
+           in the sidebar. I want them to appear in the middle of my screen
+           as before." Element kept in the DOM (still referenced by panel.js)
+           but never visible — the side panel is now a pure status surface,
+           and every coaching message routes through the center-screen
+           overlay or a Chrome notification. -->
+      <div class="p-cue-says" id="p-cue-says" style="display:none;">
+        <span id="p-cue-says-text"></span>
       </div>
     </section>
 

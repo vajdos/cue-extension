@@ -2,6 +2,18 @@
 
 The Chrome extension. Material changes only. Format: declarative, file-cited where it helps. No marketing.
 
+## v1.1.40 — 2026-05-26 — Side panel becomes pure status surface; nudges always center-screen
+
+**The change.** The side panel had three coaching-text surfaces — the green-tinted "Cue Says" observation box and the small italic hint text next to each of the four signal bars (Tension / Pace / Energy / Pause). Per Nathan's feedback, those felt like nudges-in-the-sidebar instead of true center-screen overlays. All four hint elements + the Cue Says element are now `display:none` in `side-panel/panel.html`. The textContent updates in `panel.js` still write to those nodes (no JS change needed) but nothing is visible.
+
+**What the side panel shows now.** Brand, session clock, status text + dot, mic meter (during session), four signal bars with their numeric values, Start/Stop button, settings/verify links. No coaching prose.
+
+**Where coaching goes.** Exclusively through `showCenterScreenOverlay()` (`side-panel/panel.js:1558`), which fires both:
+1. The in-tab center overlay via `chrome.scripting.executeScript` on the active tab — visible only when the active tab is a normal web page (Zoom / Meet / Teams / anywhere not a `chrome://` URL).
+2. A Chrome OS notification (priority 2, requireInteraction, silent) — visible even when you're focused on a non-Chrome window (Claude.app, Slack, native Zoom, etc.).
+
+**Verifying the overlay**: open any real tab (e.g. cue-pwa.vercel.app), start a session in the side panel, talk fast or loud. The center-screen overlay fires on the active tab. If your active tab is `chrome://extensions`, Path 1 is skipped by design — only the Chrome notification will appear.
+
 ## v1.1.39 — 2026-05-26 — Mic-permission pre-flight from the side panel
 
 **The Chrome MV3 offscreen-doc gotcha:** offscreen documents are invisible and Chrome refuses to show a permission prompt to an invisible context. The first time a user clicked Start in a fresh install, the offscreen doc's `getUserMedia` silently rejected with `NotAllowedError`. The user saw "Mic access is denied" with no way to grant it from inside Chrome's normal prompt flow.
