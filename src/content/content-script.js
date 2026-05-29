@@ -223,6 +223,9 @@
       .cue-bar-fill.tension { background: linear-gradient(90deg, #FCA5A5, #EF4444); }
       .cue-bar-fill.pace    { background: linear-gradient(90deg, #FDE68A, #F59E0B); }
       .cue-bar-fill.energy  { background: linear-gradient(90deg, #93C5FD, #3B82F6); }
+      /* v1.1.42 — Pause is "more is better" — teal gradient distinct from the
+         three regulation signals above. */
+      .cue-bar-fill.pause   { background: linear-gradient(90deg, #6EE7B7, #2DD4A0); }
 
       /* ---- Status ---- */
       .cue-status {
@@ -439,6 +442,17 @@
             <div class="cue-bar-fill energy" id="cue-energy-bar"></div>
           </div>
         </div>
+        <!-- v1.1.42 — Pause is the 4th measurement (Stivers 2009 PNAS,
+             Heldner & Edlund 2010). HIGH = good (you're letting silence
+             do the work). Color is teal (inverted from the regulation
+             signals above) so the user knows it's the "more is better"
+             axis. -->
+        <div class="cue-bar-row">
+          <span class="cue-bar-label">Pause</span>
+          <div class="cue-bar-track">
+            <div class="cue-bar-fill pause" id="cue-pause-bar"></div>
+          </div>
+        </div>
       </div>
       <div class="cue-status" id="cue-status">Click to start</div>
       <button class="cue-start-btn" id="cue-start-btn">Start Cue</button>
@@ -550,7 +564,7 @@
     statusEl.className = 'cue-status';
     shadowRoot.getElementById('cue-widget').classList.remove('active');
 
-    updateBars(0, 0, 0);
+    updateBars(0, 0, 0, 0);
     hideNudge();
     hideGlow();
     hidePacer();
@@ -605,7 +619,11 @@
 
     // Step 3: Update display
     requestAnimationFrame(() => {
-      updateBars(signal.tension, signal.pace, signal.energy);
+      // v1.1.42 — fourth bar (Pause). HIGH = good pause behavior. Heuristic:
+      // long continuous-speech drives pauseScore down; resting state at 100.
+      // continuousSpeechSec=0 → 100, 25 → 0. Threshold matches LONG_SPEECH_SEC.
+      const pauseScore = Math.max(0, Math.min(100, 100 - (signal.continuousSpeechSec || 0) * 4));
+      updateBars(signal.tension, signal.pace, signal.energy, pauseScore);
       updateStatus(signal);
     });
   }
@@ -614,18 +632,22 @@
   // BAR DISPLAY
   // ============================================================
 
-  function updateBars(tension, pace, energy) {
+  function updateBars(tension, pace, energy, pause) {
     if (!shadowRoot) return;
 
     const tensionBar = shadowRoot.getElementById('cue-tension-bar');
     const paceBar = shadowRoot.getElementById('cue-pace-bar');
     const energyBar = shadowRoot.getElementById('cue-energy-bar');
+    const pauseBar = shadowRoot.getElementById('cue-pause-bar');
 
     if (tensionBar) tensionBar.style.width = tension + '%';
     if (paceBar) paceBar.style.width = pace + '%';
     if (energyBar) energyBar.style.width = energy + '%';
+    if (pauseBar) pauseBar.style.width = (pause || 0) + '%';
 
-    // Widget goes full opacity when signals are elevated
+    // Widget goes full opacity when any regulation signal is elevated.
+    // Pause is intentionally not in the elevation set — a high pause score
+    // is good, not alarming.
     const widget = shadowRoot.getElementById('cue-widget');
     const maxSignal = Math.max(tension, pace, energy);
     if (isActive && maxSignal > CUE_THRESHOLDS.ALERT_OPACITY_THRESHOLD) {
@@ -1057,11 +1079,18 @@
     if (_autoStartAttempted || isActive) return;
     _autoStartAttempted = true;
 
-    // Short delay to let the page settle
+    // v1.1.42 — content_scripts matches expanded to <all_urls> so the
+    // widget appears on every page. Auto-start only fires when the
+    // call-detection heuristic has matched a live meeting UI (Teams /
+    // Meet / Zoom). On every other tab, the widget is visible but
+    // dormant — the user clicks Start in the widget (or in the side
+    // panel) when they want a session.
     setTimeout(() => {
-      if (!isActive) {
-        console.log('[Cue] Auto-starting on supported call page...');
+      if (!isActive && _isInCall) {
+        console.log('[Cue] Auto-starting on detected call page...');
         startAudio();
+      } else if (!isActive) {
+        console.log('[Cue] Widget injected; awaiting user Start (not on a call page).');
       }
     }, 2000);
   }

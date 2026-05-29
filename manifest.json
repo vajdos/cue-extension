@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Cue — Real-Time Conversation Intelligence",
-  "version": "1.1.41",
+  "version": "1.1.42",
   "description": "A real-time conversation intelligence layer for video calls. Processes voice acoustics on-device to help you listen better.",
   "minimum_chrome_version": "116",
   "permissions": [
@@ -21,13 +21,15 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "https://teams.cloud.microsoft/*",
-        "https://teams.microsoft.com/*",
-        "https://teams.live.com/*",
-        "https://meet.google.com/*",
-        "https://zoom.us/wc/*",
-        "https://app.zoom.us/*"
+      "matches": ["<all_urls>"],
+      "exclude_matches": [
+        "*://*.bankofamerica.com/*",
+        "*://*.chase.com/*",
+        "*://*.wellsfargo.com/*",
+        "*://*.citi.com/*",
+        "*://*.fidelity.com/*",
+        "*://*.vanguard.com/*",
+        "*://*.schwab.com/*"
       ],
       "js": [
         "src/signal/thresholds.js",

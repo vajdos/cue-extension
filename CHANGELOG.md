@@ -2,6 +2,20 @@
 
 The Chrome extension. Material changes only. Format: declarative, file-cited where it helps. No marketing.
 
+## v1.1.42 — 2026-05-27 — Floating 4-bar widget on every page; gated auto-start
+
+**Per Nathan's redirect:** "I really like the original functionality where there's a small, simple meter in the top-left corner of the web page. Whatever page you're on, a Teams call or what have you, there are small, moving bars measuring the four areas. Let's keep it simple."
+
+**The widget already existed** in `src/content/content-script.js` — Shadow DOM, top-left position:fixed, 0.35 opacity (1.0 on hover), glass-morphism. v1.1.42 makes three changes so it does what the original design promised:
+
+1. **`<all_urls>` content_scripts match.** Widget now injects on every page, not only Teams / Meet / Zoom. Excluded: banking sites (boa, chase, wells, citi, fidelity, vanguard, schwab) where injecting any third-party UI would be inappropriate. ([manifest.json](https://github.com/Vajdos/cue-extension/commit/HEAD))
+
+2. **Fourth bar — Pause.** Was three bars (Tension / Pace / Energy). Spec § 11 calls Pause the strongest single listening signal (Stivers 2009 PNAS, Heldner & Edlund 2010). New green-teal gradient distinguishes it from the three regulation signals; pauseScore is computed inline from `continuousSpeechSec` (high speech burst → low pause score) and clamped 0-100. ([src/content/content-script.js:436-445](https://github.com/Vajdos/cue-extension/commit/HEAD))
+
+3. **Gated auto-start.** Was: auto-start anywhere the content script loaded. Now: auto-start only fires when the call-detection heuristic has matched a Teams / Meet / Zoom meeting UI. On every other tab the widget is visible but dormant — user clicks Start in the widget (or the side panel) when they want a session. Keeps the "always-visible meter" UX without pulling the mic on every tab they open. ([src/content/content-script.js:1056](https://github.com/Vajdos/cue-extension/commit/HEAD))
+
+**Net UX**: a small floating meter top-left of any page, four bars + status, opacity 0.35 until you hover. Nudges still fire dead center via the existing nudge overlay. Side panel becomes purely the control surface — permission gate + Start/Stop + settings link — exactly the simple structure the original design called for.
+
 ## v1.1.41 — 2026-05-27 — Two warnings demoted: intervention-log storage guard + calibration sample-count info
 
 **`[Log] Write failed: Cannot read properties of undefined (reading 'local')`** — the intervention-log module is loaded by several HTML surfaces (panel.html, offscreen.html) as a `<script>` tag. In some load orderings the chrome.* APIs aren't yet defined when the module's first `_write` fires, so the access to `chrome.storage.local` threw. Added an `_storageAvailable()` guard that silently no-ops both `_read` and `_write` when chrome.storage isn't available. ([src/storage/intervention-log.js:40+](https://github.com/Vajdos/cue-extension/commit/HEAD))
